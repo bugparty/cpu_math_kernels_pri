@@ -1,0 +1,7 @@
+func, size, padding,time, correctness
+dgemm3, 64, 1, 0.000234s, 1
+dgemm3, 128, 1, 0.001931s, 1
+dgemm3, 256, 1, 0.016846s, 1
+dgemm3, 512, 1, 0.207502s, 1
+dgemm3, 1024, 1, 1.677752s, 1
+dgemm3, 2048, 1, 33.655922s, 1
