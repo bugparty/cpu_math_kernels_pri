@@ -1,2 +1,8 @@
 .vscode/
 main
+tester
+build/
+.ipynb_checkpoints/
+.idea/
+*.pyc
+cmake-build-debug/
