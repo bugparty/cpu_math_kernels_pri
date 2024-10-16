@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <stdbool.h>
+const int BLOCK_SIZE = 8;
 #include "dgemm0.c"
 #include "dgemm1.c"
 #include "dgemm2.c"
