@@ -4,7 +4,10 @@
 #include <string.h>
 #include <sys/time.h>
 #include <stdbool.h>
-const int BLOCK_SIZE = 8;
+// you can pass  gcc -BLOCK_SIZE=2048 to alter that
+#ifndef BLOCK_SIZE
+#define BLOCK_SIZE 8
+#endif
 #include "dgemm0.c"
 #include "dgemm1.c"
 #include "dgemm2.c"
