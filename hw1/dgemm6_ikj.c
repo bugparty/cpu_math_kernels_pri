@@ -14,6 +14,18 @@ void dgemm6_ikj(double *C,double *A,double *B,int n)
 
 void dgemm6_ikj2(double *C,double *A,double *B,int n)
 {
-    // complete the missing code here
-     
+    int i,j,k;
+    int ii,jj,kk;
+    for(i=0;i<n;i+=BLOCK_SIZE)
+    for(k=0;k<n;k+=BLOCK_SIZE)
+    for(j=0;j<n;j+=BLOCK_SIZE)   
+        for(ii=i;ii<i+BLOCK_SIZE;ii++)
+        for(kk=k;kk<k+BLOCK_SIZE;kk++)
+        {
+            register double r = A[ii*n+kk];
+            for(jj=j;jj<j+BLOCK_SIZE;jj++){
+                C[ii*n+jj] += B[kk*n+jj] * r;
+            }
+        }
 }
+        

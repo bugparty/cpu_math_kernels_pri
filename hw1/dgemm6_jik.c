@@ -13,6 +13,20 @@ for(j=0;j<n;j++){
 
 void dgemm6_jik2(double *C,double *A,double *B,int n)
 {
-    // complete the missing code here
+    int i,j,k;
+    int ii,jj,kk;
+    for(j=0;j<n;j+=BLOCK_SIZE)   
+    for(i=0;i<n;i+=BLOCK_SIZE)
+    for(k=0;k<n;k+=BLOCK_SIZE)
+        
+        for(jj=j;jj<j+BLOCK_SIZE;jj++)
+        for(ii=i;ii<i+BLOCK_SIZE;ii++){
+            register double sum = C[ii*n+jj];
+            for(kk=k;kk<k+BLOCK_SIZE;kk++)
+            {
+                sum += A[ii*n+kk] * B[kk*n+jj];
+            }
+            C[ii*n+jj]= sum;
+        }
      
 }
