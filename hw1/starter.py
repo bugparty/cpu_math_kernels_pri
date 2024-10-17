@@ -8,7 +8,7 @@ for i in range(6,11):
 for i in range(6,12):
     os.system("srun main dgemm2 "+str(2**i)+" 1")
 for i in range(6,12):
-    os.system("srun main dgemm3 "+str(2**i)+" 1")
+    os.system("srun main dgemm3 "+str(2**i)+" 3")
 os.system("srun main dgemm6_ijk 2048 1")
 os.system("srun main dgemm6_ikj 2048 1")
 os.system("srun main dgemm6_jik 2048 1")

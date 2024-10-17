@@ -6,7 +6,7 @@
 #include <stdbool.h>
 // you can pass  gcc -BLOCK_SIZE=2048 to alter that
 #ifndef BLOCK_SIZE
-#define BLOCK_SIZE 8
+#define BLOCK_SIZE 64
 #endif
 #include "dgemm0.c"
 #include "dgemm1.c"
