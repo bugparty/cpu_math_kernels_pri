@@ -1,7 +1,6 @@
 void dgemm7(double *C,double *A,double *B,int n)
 {
-    register int i, j, k;
-    register int ii, jj, kk;
+    int i, j, k, ii, jj, kk;
     const int STRIDE = 4; 
 
     for (i = 0; i < n; i += BLOCK_SIZE) 

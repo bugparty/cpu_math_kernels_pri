@@ -15,8 +15,8 @@ void dgemm6_ijk(double *C,double *A,double *B,int n)
 
 void dgemm6_ijk2(double *C,double *A,double *B,int n)
 {
-     register int i,j,k;
-     register int ii,jj,kk;
+     int i,j,k;
+     int ii,jj,kk;
      for(i=0;i<n;i+=BLOCK_SIZE)
          for(j=0;j<n;j+=BLOCK_SIZE)
              for(k=0;k<n;k+=BLOCK_SIZE)

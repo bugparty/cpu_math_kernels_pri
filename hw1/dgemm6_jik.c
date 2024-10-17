@@ -21,12 +21,13 @@ void dgemm6_jik2(double *C,double *A,double *B,int n)
         
         for(jj=j;jj<j+BLOCK_SIZE;jj++)
         for(ii=i;ii<i+BLOCK_SIZE;ii++){
+            register const int iin = ii*n;
             register double sum = C[ii*n+jj];
             for(kk=k;kk<k+BLOCK_SIZE;kk++)
             {
-                sum += A[ii*n+kk] * B[kk*n+jj];
+                sum += A[iin+kk] * B[kk*n+jj];
             }
-            C[ii*n+jj]= sum;
+            C[iin+jj]= sum;
         }
      
 }
