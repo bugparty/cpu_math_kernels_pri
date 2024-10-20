@@ -6,3 +6,5 @@ build/
 .idea/
 *.pyc
 cmake-build-debug/
+build2
+*.o

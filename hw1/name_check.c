@@ -12,9 +12,5 @@ void name_check(char *func_name)
     valid_name|=((strcmp("dgemm6_kij",func_name)==0) || (strcmp("dgemm6_kij2",func_name)==0));
     valid_name|=((strcmp("dgemm6_kji",func_name)==0) || (strcmp("dgemm6_kji2",func_name)==0));
     valid_name|=(strcmp("dgemm7",func_name)==0);
-    if (!valid_name)
-    {
-        printf("Invalid function name\n");
-        exit(0);
-    }
+   
 }

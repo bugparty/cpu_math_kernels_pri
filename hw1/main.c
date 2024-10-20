@@ -2,7 +2,7 @@
 #include "name_check.c"
 #include "func_call.c"
 #include "math.h"
-
+double *B_T;
 int main(int argc, char **argv)
 {
     if (argc!=4)
@@ -17,13 +17,14 @@ int main(int argc, char **argv)
     name_check(func_name);
     printf("n=%d\n",n);
     int i,t;
-
-    double *A_backup=(double*)malloc(n*n*sizeof(double));
-    double *B_backup=(double*)malloc(n*n*sizeof(double));
-    double *C_backup=(double*)malloc(n*n*sizeof(double));
-    double *A=(double*)malloc(n*n*sizeof(double));
-    double *B=(double*)malloc(n*n*sizeof(double));
-    double *C=(double*)malloc(n*n*sizeof(double));
+    size_t alignment = 32;
+    double *A_backup=(double*)_mm_malloc(n*n*sizeof(double), alignment);
+    double *B_backup=(double*)_mm_malloc(n*n*sizeof(double), alignment);
+    double *C_backup=(double*)_mm_malloc(n*n*sizeof(double), alignment);
+    double *A=(double*)_mm_malloc(n*n*sizeof(double), alignment);
+    double *B=(double*)_mm_malloc(n*n*sizeof(double), alignment);
+    B_T =  (double*)_mm_malloc(n*n*sizeof(double), alignment);
+    double *C=(double*)_mm_malloc(n*n*sizeof(double), alignment);
     srand(time(NULL));
     for (i=0;i<n*n;i++)
     {

@@ -1,20 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
-
-project(DGEMM_Project C)
-
-set(SOURCE_FILES
-    dgemm0.c
-    dgemm1.c
-    dgemm2.c
-    dgemm3.c
-    dgemm7.c
-    dgemm6_ijk.c
-    dgemm6_ikj.c
-    dgemm6_jik.c
-    dgemm6_jki.c
-    dgemm6_kij.c
-    dgemm6_kji.c
-    main.c
-)
-
-add_executable(main main.c)
+project(hpc_playground)
+set(CMAKE_CXX_STANDARD 14)
+set(OPTIMIZATION_LEVEL "" CACHE STRING "Optimization level (e.g., -O1, -O2)")
+add_executable(bench
+        dgemm.c
+        bench.cpp
+        dgemm.h)
+target_compile_options(bench PRIVATE -march=native  ${OPTIMIZATION_LEVEL})

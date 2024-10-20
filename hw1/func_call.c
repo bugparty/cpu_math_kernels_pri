@@ -17,4 +17,7 @@ void func_call(char *func_name,double *C,double *A,double *B,int n)
     if (strcmp(func_name,"dgemm6_kij2")==0) dgemm6_kij2(C,A,B,n);
     if (strcmp(func_name,"dgemm6_kji2")==0) dgemm6_kji2(C,A,B,n);
     if (strcmp(func_name,"dgemm7")==0)  dgemm7(C,A,B,n);
+    // if (strcmp(func_name,"dgemm71")==0)  dgemm71(C,A,B,n);
+    // if (strcmp(func_name,"dgemm72")==0)  dgemm72(C,A,B,n);
+    //if (strcmp(func_name,"dgemm73")==0)  dgemm73(C,A,B,n);
 }

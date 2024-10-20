@@ -22,5 +22,6 @@ os.system("srun main dgemm6_jki2 2048 1")
 os.system("srun main dgemm6_kij2 2048 1")
 os.system("srun main dgemm6_kji2 2048 1")
 for i in range(0,4):
-    os.system("gcc main.c -o main -O"+str(i))
-    os.system("srun main dgemm7 2048 1")
+    os.system("make clean > /dev/null")
+    os.system("make bench OPT=-O"+str(i)+" > /dev/null")
+    os.system("srun bench dgemm7 2048 48")
