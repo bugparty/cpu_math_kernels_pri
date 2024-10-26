@@ -6,7 +6,7 @@
 void lapack_f(double *A,double *B,int n)
 {
     int *ipiv=(int*)malloc(n*sizeof(int));
-    LAPACKE_dgetrf(LAPACK_ROW_MAJOR,n,n,A,n,(long long*)ipiv);
+    LAPACKE_dgetrf(LAPACK_ROW_MAJOR,n,n,A,n,(lapack_int*)ipiv);
     for (int i=0;i<n;i++)
     {
         double tmp=B[ipiv[i]-1];

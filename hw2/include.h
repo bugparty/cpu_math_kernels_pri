@@ -6,6 +6,7 @@
 #include <time.h>
 #include <string.h>
 #include <sys/time.h>
+#include <immintrin.h>
 #include <math.h>
 #include "mkl.h"
 #include "mkl_lapacke.h"
