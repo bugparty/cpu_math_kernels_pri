@@ -1,9 +1,10 @@
 #!/bin/bash
 export LD_LIBRARY_PATH=/home/bhan001/cs211-hw2-solving-large-linear-system-private-bugparty/extern:/act/opt/intel/composer_xe_2013.3.163/mkl/lib/intel64:$LD_LIBRARY_PATH
-
-sizes=(128 256 512)
+make
+sizes=(2048)
 
 for size in "${sizes[@]}"; do
+  ./main my  "$size"
   ./main my_block "$size"
   ./main lapack "$size"
 done

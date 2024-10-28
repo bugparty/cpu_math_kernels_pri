@@ -27,7 +27,7 @@ int main(int argc,char **argv)
     int pad;
     fscanf(pad_file,"%d",&pad);
     fclose(pad_file);
-    FILE *file = fopen("matrix1.txt", "r");
+    FILE *file = fopen("matrix2.txt", "r");
     if (file == NULL) {
         printf("Can't open file\n");
         return 1;

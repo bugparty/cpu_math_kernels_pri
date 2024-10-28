@@ -62,7 +62,6 @@ int mydgetrf(double *A,int *ipiv,int n)
     int i=0,t;
     int maxind;
     double max;
-    int isSingular=0;
     for (i=0;i<n-1;++i){// line 16 of mylu.m
         maxind=i;
         max = fabs(A[i*n+i]);
@@ -73,7 +72,6 @@ int mydgetrf(double *A,int *ipiv,int n)
             }
         }
         if( fabs(max -0) < 1e-8){//line 24  of mylu.m
-            isSingular = 1;
             return 0;
         }else{
             if (maxind != i){
@@ -153,8 +151,6 @@ void mydtrsv(char UPLO,double *A,double *B,int n,int *ipiv)
 {
     double * y = (double*)malloc(n*sizeof(double));
     double * orig = y;
-    double * x = 0;
-    int i;
     switch(UPLO){
         case 'L':
             forward(A,B,n,ipiv);
