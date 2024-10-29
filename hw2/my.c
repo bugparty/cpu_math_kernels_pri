@@ -186,7 +186,8 @@ void my_f(double *A,double *B,int n)
     int *ipiv=(int*)_mm_malloc(n*sizeof(int), alignment);
     for (int i=0;i<n;i++)
         ipiv[i]=i;
-    if (mydgetrf(A,ipiv,n)==0) 
+    //my_block_dgetrf(A,0,n-1,0,n-1,ipiv,n);
+    if (mydgetrf(A,ipiv,n)==0)
     {
         printf("LU factoration failed: coefficient matrix is singular.\n");
         return;

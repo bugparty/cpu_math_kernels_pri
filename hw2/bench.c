@@ -15,8 +15,8 @@ int main(int argc,char **argv)
     fscanf(pad_file,"%d",&pad);
     fclose(pad_file);
     n=((n+pad-1)/pad)*pad;
-    printf("n=%d, pad=%d\n",n,pad);
-    size_t alignment = 16;
+    printf("%d,%d,%s,",n,pad, func_name);
+    size_t alignment = 64;
     double *A_backup=(double*)_mm_malloc(n*n*sizeof(double), alignment);
     double *B_backup=(double*)_mm_malloc(n*sizeof(double), alignment);
     double *A=(double*)_mm_malloc(n*n*sizeof(double), alignment);
@@ -36,7 +36,7 @@ int main(int argc,char **argv)
     gettimeofday(&start,NULL);
     func_call(func_name,A,B,n);
     gettimeofday(&end,NULL);
-    printf("time=%lfs\n",end.tv_sec-start.tv_sec+1e-6*(end.tv_usec-start.tv_usec));
+    printf("%lf\n",end.tv_sec-start.tv_sec+1e-6*(end.tv_usec-start.tv_usec));
     
     for (int i=0;i<n;i++)
     {

@@ -2,6 +2,10 @@
 #define __MY_BLOCK_C__
 #define DEBUGPRINT1
 #include "include.h"
+#include <omp.h>
+#include <math.h>
+#include <stdlib.h>
+
 void printM2(double* A, int x1,int x2,int y1,int y2,int n){
 #ifdef DEBUGPRINT
     puts("begin matrix");
@@ -14,6 +18,7 @@ void printM2(double* A, int x1,int x2,int y1,int y2,int n){
     puts("end matrix");
 #endif
 }
+#define GEMM2_BLOCK_SIZE 16
 int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
     int k;
     int ii,jj;
@@ -29,8 +34,9 @@ int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
                 int maxind=topRowInd;
                 double max = fabs(A[topRowInd*n+curColumn]);
                 for(int t=topRowInd+1;t<=x2;++t){
-                    if(fabs(fabs(A[t*n+curColumn]))>max){
-                        maxind = t;max=fabs(A[t*n+curColumn]);
+                    double absVal = fabs(A[t*n+curColumn]);
+                    if(absVal >max){
+                        maxind = t;max=absVal;
                     }
                 }
                 if(fabs(max) < 1e-8){
@@ -40,14 +46,15 @@ int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
                         int temp = ipiv[topRowInd];
                         ipiv[topRowInd] = ipiv[maxind];
                         ipiv[maxind] = temp;
-                        swapRow(A,n,topRowInd,maxind); //line 33 of mylu.m
+                        swapRow2(A,n,topRowInd,maxind); //line 33 of mylu.m
                     }
                 }
                 /*     for ii=x1+k+1:x2 %x1+k is the top row, divide
                         A(ii,jj)=A(ii,jj)/A(x1+k,y1+k);
                  */
+                #pragma GCC unroll 4
                 for(ii=x1+k+1;ii<=x2;++ii){
-                    A[ii*n+jj] = A[ii*n+jj] / A[(x1+k)*n+y1+k];
+                    A[ii*n+jj] /=  A[(x1+k)*n+y1+k];
                 }
                 needDiv=0;
                 divColumn=jj;
@@ -55,8 +62,9 @@ int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
             }else{
 //                                for ii=x1+k+1:x2 % subtract
 //                        A(ii,jj)=A(ii,jj)-A(ii,divColumn)*A(x1+k,jj);
+                #pragma GCC unroll 4
                 for(ii=x1+k+1;ii<=x2;++ii){
-                    A[ii*n+jj] = A[ii*n+jj] -  A[ii*n+divColumn]*A[(x1+k)*n+jj];
+                    A[ii*n+jj] -=  A[ii*n+divColumn]*A[(x1+k)*n+jj];
                 }
 
             }
@@ -64,13 +72,121 @@ int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
     }
     return 1;
 }
+void kernel_reg4(double *C,double *A,double *B,int i,int j,int k,int n)
+{
+register int ii, jj, kk;
+    const int STRIDE = 2;
+    for(ii=i;ii< i+GEMM2_BLOCK_SIZE;ii+=2){
+         for(jj=j;jj<j+GEMM2_BLOCK_SIZE;jj+=2){
+              register double c00,c01,c10,c11;
+              register int t1,t2;
+              t1 = ii*n+jj;t2 = t1+n;
+              c00=C[t1];c01=C[t1+1];c10=C[t2];c11=C[t2+1];
+              for(kk=k;kk<k+GEMM2_BLOCK_SIZE;kk+=2){
+                   register int ta = i*n+kk; register int tta = ta+n; register int tb = kk*n+j; register int ttb = tb+n;
+                   register double a00 = A[ta]; register double a10 = A[tta]; register double b00 = B[tb]; register double b01 = B[tb+1];
 
+                   c00 -= a00*b00 ; c01 -= a00*b01 ; c10 -= a10*b00 ; c11 -= a10*b01 ;
+
+                   a00 = A[ta+1]; a10 = A[tta+1]; b00 = B[ttb]; b01 = B[ttb+1];
+
+                   c00 -= a00*b00 ; c01 -= a00*b01 ; c10 -= a10*b00 ; c11 -= a10*b01 ;
+              }
+              C[t1]=c00;
+              C[t1+1]=c01;
+              C[t2]=c10;
+              C[t2+1]=c11;
+         }
+    }
+
+}
+void kernel_reg16(double *C,int n,int i,int j,int k){
+     int ii, jj, kk;
+    const int STRIDE = 4;
+    // #pragma omp parallel for collapse(2) schedule(static)
+    for (ii = i; ii < (i + GEMM2_BLOCK_SIZE); ii += STRIDE)
+        //#pragma GCC unroll 4
+        for (jj = j; jj < (j + GEMM2_BLOCK_SIZE); jj += STRIDE)
+        {
+             int t = ii*n + jj;
+             int tt = t + n;
+             int ttt = tt + n;
+             int tttt = ttt + n;
+            register double c00 = C[t], c01 = C[t + 1], c02 = C[t + 2], c03 = C[t + 3];
+            register double c10 = C[tt], c11 = C[tt + 1], c12 = C[tt + 2], c13 = C[tt + 3];
+            register double c20 = C[ttt], c21 = C[ttt + 1], c22 = C[ttt + 2], c23 = C[ttt + 3];
+            register double c30 = C[tttt], c31 = C[tttt + 1], c32 = C[tttt + 2], c33 = C[tttt + 3];
+            //#pragma GCC unroll 4
+            for(kk = k; kk < (k + GEMM2_BLOCK_SIZE); kk += STRIDE)
+            {
+                 int ta = ii*n + kk;
+                 int tb = kk*n + jj;
+                 int tta = ii*n + kk + n;
+                 int ttta = ii*n + kk + 2*n;
+                 int tttta = ii*n + kk + 3*n;
+                int tbb = kk*n + jj+n;
+                int tbbb = kk*n + jj+n*2;
+                int tb4 = kk*n + jj+n*3;
+                register double a00 = C[ta]; //, a01 = A[ta + 1], a02 = A[ta + 2], a03 = A[ta + 3];
+                register double a10 = C[tta]; //, a11 = A[tta + 1], a12 = A[tta + 2], a13 = A[tta + 3];
+                register double a20 = C[ttta]; //, a21 = A[ttta + 1], a22 = A[ttta + 2], a23 = A[ttta + 3];
+                register double a30 = C[tttta]; //, a31 = A[tttta + 1], a32 = A[tttta + 2], a33 = A[tttta + 3];
+
+
+
+                register double b00 = C[tb], b01 = C[tb + 1], b02 = C[tb + 2], b03 = C[tb + 3];
+
+
+                c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
+                c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
+                _mm_prefetch(&C[tbb],3);
+
+
+                c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
+                c03 -= a00 * b03; c13 -= a10 * b03; c23 -= a20 * b03; c33 -= a30 * b03;
+
+                a00 = C[ta + 1], a10 = C[tta + 1], a20 = C[ttta + 1], a30 = C[tttta + 1];
+                b00 = C[tbb], b01 = C[tbb + 1], b02 = C[tbb + 2], b03 = C[tbb + 3];
+
+                c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
+                c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
+                _mm_prefetch(&C[tbbb],3);
+                c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
+                c03 -= a00 * b03; c13 -= a10 * b03; c23 -= a20 * b03; c33 -= a30 * b03;
+
+
+                a00 = C[ta + 2], a10 = C[tta + 2], a20 = C[ttta + 2], a30 = C[tttta + 2];
+                b00 = C[tbbb], b01 = C[tbbb + 1], b02 = C[tbbb + 2], b03 = C[tbbb + 3];
+
+                c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
+                c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
+                 _mm_prefetch(&C[tb4],3);
+                c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
+                c03 -= a00 * b03; c13 -= a10 * b03; c23 -= a20 * b03; c33 -= a30 * b03;
+
+                a00 = C[ta + 3], a10 = C[tta + 3], a20 = C[ttta + 3], a30 = C[tttta + 3];
+                b00 = C[tb4], b01 = C[tb4 + 1], b02 = C[tb4 + 2], b03 = C[tb4 + 3];
+
+                c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
+                c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
+                c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
+                c03 -= a00 * b03; c13 -= a10 * b03; c23 -= a20 * b03; c33 -= a30 * b03;
+            }
+
+            C[t] = c00; C[t + 1] = c01; C[t + 2] = c02; C[t + 3] = c03;
+            C[tt] = c10; C[tt + 1] = c11; C[tt + 2] = c12; C[tt + 3] = c13;
+            C[ttt] = c20; C[ttt + 1] = c21; C[ttt + 2] = c22; C[ttt + 3] = c23;
+            C[tttt] = c30; C[tttt + 1] = c31; C[tttt + 2] = c32; C[tttt + 3] = c33;
+
+        }
+}
 void kernel_Avx512_S4(double *C,double *A,double *B,int n,int i,int j,int k)
 {
 register int ii,jj,kk;
 static const int BLOCK_SIZE=64;
 for (ii=i;ii<i+BLOCK_SIZE;ii++)
 {
+    #pragma GCC unroll 4
     for (jj=j;jj<j+BLOCK_SIZE;jj+=8)
     {
     register int ij = ii*n+jj;
@@ -89,17 +205,17 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
         //c07 = a00*b07+...
         //c00...c03 += a00*b00, a00*b01,a00*b02,a00*b03
         int ik=ii*n+kk;
-        __m512d Aikx8 = _mm512_broadcastsd_pd(_mm_load_sd(&A[ik]));//A a(i,k)  a(i,k) a(i,k) a(i,k)
-        __m512d Aikx8t = _mm512_broadcastsd_pd(_mm_load_sd(&A[ik+1]));
-        __m512d Aikx8tt = _mm512_broadcastsd_pd(_mm_load_sd(&A[ik+2]));
-        __m512d Aikx8ttt = _mm512_broadcastsd_pd(_mm_load_sd(&A[ik+3]));
+        __m512d Aikx8 = _mm512_broadcastsd_pd(_mm_load_sd(&C[ik]));//A a(i,k)  a(i,k) a(i,k) a(i,k)
+        __m512d Aikx8t = _mm512_broadcastsd_pd(_mm_load_sd(&C[ik+1]));
+        __m512d Aikx8tt = _mm512_broadcastsd_pd(_mm_load_sd(&C[ik+2]));
+        __m512d Aikx8ttt = _mm512_broadcastsd_pd(_mm_load_sd(&C[ik+3]));
         // B b(k,j) b(k,j+1) b(k,j+2) b(k,j+3)
         //so result are a(i,k)*b(k,j),  a(i,k)*b(k,j+1), a(i,k)*b(k,j+2), a(i,k)*b(k,j+3),
         int kj = kk*n+jj;
-        __m512d Bkjh8 = _mm512_loadu_pd(&B[kj]);
-        __m512d Bkjh8t = _mm512_loadu_pd(&B[kj+n]);
-        __m512d Bkjh8tt = _mm512_loadu_pd(&B[kj+2*n]);
-        __m512d Bkjh8ttt = _mm512_loadu_pd(&B[kj+3*n]);
+        __m512d Bkjh8 = _mm512_loadu_pd(&C[kj]);
+        __m512d Bkjh8t = _mm512_loadu_pd(&C[kj+n]);
+        __m512d Bkjh8tt = _mm512_loadu_pd(&C[kj+2*n]);
+        __m512d Bkjh8ttt = _mm512_loadu_pd(&C[kj+3*n]);
         Cijh8 = _mm512_fmadd_pd(Aikx8, Bkjh8, Cijh8);
         Cijh8 = _mm512_fmadd_pd(Aikx8t, Bkjh8t, Cijh8);
         Cijh8 = _mm512_fmadd_pd(Aikx8tt, Bkjh8tt, Cijh8);
@@ -114,14 +230,14 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
     }
     }
 }
-void kernel_naive(double *C,double *A, double*B, int n,int i,int j,int k,int blockSize){
+void kernel_naive(double *C,double *A, double*B, int n,int i,int j,int k){
     int ii,jj,kk;
-    for(ii=i;ii<i+blockSize;ii++) {
+    for(ii=i;ii<i+GEMM2_BLOCK_SIZE;ii++) {
         register int iin = ii * n;
-        for (kk = k; kk < k + blockSize; kk++) {
+        for (kk = k; kk < k + GEMM2_BLOCK_SIZE; kk++) {
             register double r = A[iin + kk];
-            for (jj = j; jj < j + blockSize; jj++) {
-                C[iin + jj] += B[kk * n + jj] * r;
+            for (jj = j; jj < j + GEMM2_BLOCK_SIZE; jj++) {
+                C[iin + jj] -= B[kk * n + jj] * r;
             }
         }
     }
@@ -145,7 +261,7 @@ void gemm1(double*A,int n,int iend,int ib){
         }
     }
 }
-static const int GEMM2_BLOCK_SIZE = 8;
+
 void gemm2_kernel_ijk(double*A, int n, int i, int j, int k){
     for (int ii = i; ii < i+GEMM2_BLOCK_SIZE; ii++) {
         for (int jj = j; jj < j+GEMM2_BLOCK_SIZE; jj++) {
@@ -173,21 +289,29 @@ void gemm2_kernel_ikj(double*A, int n, int i, int j, int k){
 
 void gemm2_ikj(double*A, int n, int iend, int ib){
     int i, j, k;
+
     for (i = iend; i < n; i += GEMM2_BLOCK_SIZE)
         for (k = ib; k <= iend; k += GEMM2_BLOCK_SIZE)
             for (j = iend; j < n; j += GEMM2_BLOCK_SIZE)
             {
-                gemm2_kernel_ijk(A, n, i, j, k);
+                //gemm2_kernel_ijk(A, n, i, j, k);
+                //kernel_Avx512_S4(A,A,A,n,i,j,k);
+                kernel_reg16(A,n,i,j,k);
+                //kernel_reg4(A,A,A,i,j,k,n);
+                //kernel_naive(A,A,A,n,i,j,k);
             }
 }
 void gemm2_kij(double*A, int n, int iend, int ib){
-    int i, j, k;
+    register int i, j, k;
      for (k = ib; k <= iend; k += GEMM2_BLOCK_SIZE)
     for (i = iend; i < n; i += GEMM2_BLOCK_SIZE)
-
             for (j = iend; j < n; j += GEMM2_BLOCK_SIZE)
             {
-                gemm2_kernel_ijk(A, n, i, j, k);
+                //gemm2_kernel_ijk(A, n, i, j, k);
+                //kernel_Avx512_S4(A,A,A,n,i,j,k);
+                kernel_reg16(A,n,i,j,k);
+               // kernel_naive(A,A,A,n,i,j,k);
+                //kernel_reg4(A,A,A,i,j,k,n);
             }
 }
 
@@ -220,6 +344,62 @@ void geppU(double* A, int x1,int x2,int y1,int y2, int multiColumn,int n ){
         }
     }
 }
+void swapRowBlock(double *A, int n, int y1,int y2, int first, int second){
+    int i;
+    for(i=0;i<n;i++){
+        double t = A[first*n+i];
+        A[first*n+i]= A[second*n+i];
+        A[second*n+i] =t;
+    }
+}
+int my_block_dgetrf(double *A,int x1,int x2,int y1,int y2,int *ipiv,int n)
+{
+    int i=0,t;
+    int maxind;
+    double max;
+    int rows = x2-x1+1;
+    int columns = y2-y1+1;
+    int minRC = MIN(rows, columns);
+    for (i=x1;i<minRC;++i){// line 16 of mylu.m
+        maxind=i;
+        max = fabs(A[i*n+i]);
+        for(t=i+1;t<=x2;++t){
+            if( fabs(A[t*n+i] > max)){
+                maxind = t;
+                max = fabs(A[t*n+i]);//line 21 of mylu.m
+            }
+        }
+        if( fabs(max -0) < 1e-8){//line 24  of mylu.m
+            return 0;
+        }else{
+            if (maxind != i){
+                ipiv[i] = ipiv[maxind];
+                swapRowBlock(A,n,y1,y2,i,maxind); //line 33 of mylu.m
+            }
+        }
+        int j,k;
+        for(j=i+1; j<=x2; ++j){
+            int tjni = j*n+i;
+            double Ajni = A[tjni];
+            Ajni /=  A[i*n+i];
+            for(k=i+1;k<=y2;++k){
+                A[j*n+k] -= Ajni*A[i*n+k];
+            }
+            A[tjni]=Ajni;
+        }
+    }
+    //The return value (an integer) can be 0 or 1
+    //If 0, the matrix is irreducible and the result will be ignored
+    //If 1, the result is valid
+    return 1;
+}
+void updateMaByPivot(double*A, int x1,int x2,int y1,int y2,int *ipiv,int n){
+    for(int i=x1;i<=x2;i++){
+        if(i!= ipiv[i]){
+            swapRowBlock(A,n,y1,y2,i,ipiv[i]);
+        }
+    }
+}
 void my_block_f(double *A,double *B,int n)
 {
     int *ipiv=(int*)malloc(n*sizeof(int));
@@ -233,19 +413,20 @@ void my_block_f(double *A,double *B,int n)
     }
     for (int ib=0;ib<n;ib+=b){
         int iend = ib+b-1;
-        if (mydgetrf2(A, ib,n-1,ib,iend, ipiv, n)==0)
+        if (my_block_dgetrf(A, ib,n-1,ib,iend, ipiv, n)==0)
         {
             printf("LU factoration failed: coefficient matrix is singular.\n");
             return ;
         }
-        printM2(A,ib,n-1,ib,n-1,n);
+        //printM2(A,ib,n-1,ib,n-1,n);
+        updateMaByPivot(A, ib,n-1, 0, ib-1, ipiv, n);
         geppU(A, ib,iend, iend+1,n-1, ib,n);
-        printM2(A,ib,n-1,ib,n-1,n);
-        //A[(bid+1)*b:n,bid*b:(bid+1)*b]
-        //A(ib+b:n,ib:ib+b-1)
+        //printM2(A,ib,n-1,ib,n-1,n);
+        updateMaByPivot(A, ib,n-1, iend+1, n-1, ipiv, n);
         //A(iend+1:n,iend+1:n)=A(iend+1:n,iend+1:n)-A(iend+1:n,ib:iend)*A(ib:iend,iend+1:n);
+        //gemm2_kij(A, n, iend, ib);
         gemm2_ikj(A, n, iend, ib);
-        printM2(A,ib,n-1,ib,n-1,n);
+       // printM2(A,ib,n-1,ib,n-1,n);
 
     }
 

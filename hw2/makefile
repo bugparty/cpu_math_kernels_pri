@@ -9,6 +9,9 @@ main: func_call.c include.h lapack.c main.c makefile my_block.c my.c
 	rm -f main
 	${CC} main.c -o main ${LDFLAGS}
 
+bench: func_call.c include.h lapack.c bench.c makefile my_block.c my.c
+	rm -f bench
+	${CC} bench.c -o bench ${LDFLAGS}
 .PHONY: clean
 runmy: main
 	./main my 4

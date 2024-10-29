@@ -10,5 +10,5 @@
 #include <math.h>
 #include "mkl.h"
 #include "mkl_lapacke.h"
-
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
