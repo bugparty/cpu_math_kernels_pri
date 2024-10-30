@@ -18,7 +18,7 @@ void printM2(double* A, int x1,int x2,int y1,int y2,int n){
     puts("end matrix");
 #endif
 }
-#define GEMM2_BLOCK_SIZE 16
+#define GEMM2_BLOCK_SIZE 128
 int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
     int k;
     int ii,jj;
@@ -182,16 +182,17 @@ void kernel_reg16(double *C,int n,int i,int j,int k){
 }
 void kernel_Avx512_S4(double *C,double *A,double *B,int n,int i,int j,int k)
 {
-register int ii,jj,kk;
+ int ii,jj,kk;
 static const int BLOCK_SIZE=64;
+__m256d neg_one = _mm256_set1_pd(-1.0);
 for (ii=i;ii<i+BLOCK_SIZE;ii++)
 {
     #pragma GCC unroll 4
     for (jj=j;jj<j+BLOCK_SIZE;jj+=8)
     {
-    register int ij = ii*n+jj;
+     double *pCij = &C[ii*n+jj];
     //c(i,j) c(i,j+1) c(i,j+2) c(i,j+3)
-    register __m512d Cijh8 = _mm512_loadu_pd(&C[ij]);
+     __m512d Cijh8 = _mm512_loadu_pd(pCij);
     for (kk=k;kk<k+BLOCK_SIZE;kk+=4)
     {
 
@@ -204,18 +205,32 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
         //...
         //c07 = a00*b07+...
         //c00...c03 += a00*b00, a00*b01,a00*b02,a00*b03
-        int ik=ii*n+kk;
-        __m512d Aikx8 = _mm512_broadcastsd_pd(_mm_load_sd(&C[ik]));//A a(i,k)  a(i,k) a(i,k) a(i,k)
-        __m512d Aikx8t = _mm512_broadcastsd_pd(_mm_load_sd(&C[ik+1]));
-        __m512d Aikx8tt = _mm512_broadcastsd_pd(_mm_load_sd(&C[ik+2]));
-        __m512d Aikx8ttt = _mm512_broadcastsd_pd(_mm_load_sd(&C[ik+3]));
+        const int ik=ii*n+kk;
+        __m256d CikX4 = _mm256_loadu_pd(&C[ik]);
+        const int kj = kk*n+jj;
+        const double* pCkj = &C[kj];
+
+        _mm_prefetch(pCkj, 3);
+
+        __m256d negatedCikX4 = _mm256_mul_pd(CikX4, neg_one);
+        const double * pCkj1n = pCkj+n;
+        __m128d xmm0 = _mm256_extractf128_pd(negatedCikX4, 0); // 提取低 128 位
+        const double * pCkj2n = pCkj1n+n;
+
+        __m128d xmm1 = _mm256_extractf128_pd(negatedCikX4, 1); // 提取高 128 位
+          const double * pCkj3n = pCkj2n+n;
+         _mm_prefetch(pCkj1n, 3);
+        __m512d Aikx8 = _mm512_broadcastsd_pd(_mm_permute_pd(xmm0, 0b00));//A a(i,k)  a(i,k) a(i,k) a(i,k)
+        __m512d Aikx8t = _mm512_broadcastsd_pd(_mm_permute_pd(xmm0, 0b11));
+        __m512d Aikx8tt = _mm512_broadcastsd_pd(_mm_permute_pd(xmm1, 0b00));
+        __m512d Aikx8ttt = _mm512_broadcastsd_pd(_mm_permute_pd(xmm1, 0b11));
         // B b(k,j) b(k,j+1) b(k,j+2) b(k,j+3)
         //so result are a(i,k)*b(k,j),  a(i,k)*b(k,j+1), a(i,k)*b(k,j+2), a(i,k)*b(k,j+3),
-        int kj = kk*n+jj;
-        __m512d Bkjh8 = _mm512_loadu_pd(&C[kj]);
-        __m512d Bkjh8t = _mm512_loadu_pd(&C[kj+n]);
-        __m512d Bkjh8tt = _mm512_loadu_pd(&C[kj+2*n]);
-        __m512d Bkjh8ttt = _mm512_loadu_pd(&C[kj+3*n]);
+
+        __m512d Bkjh8 = _mm512_loadu_pd(pCkj);
+        __m512d Bkjh8t = _mm512_loadu_pd(pCkj1n);
+        __m512d Bkjh8tt = _mm512_loadu_pd(pCkj2n);
+        __m512d Bkjh8ttt = _mm512_loadu_pd(pCkj3n);
         Cijh8 = _mm512_fmadd_pd(Aikx8, Bkjh8, Cijh8);
         Cijh8 = _mm512_fmadd_pd(Aikx8t, Bkjh8t, Cijh8);
         Cijh8 = _mm512_fmadd_pd(Aikx8tt, Bkjh8tt, Cijh8);
@@ -226,7 +241,7 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
         // c += A[ink+3]*B_T[jnk+3];
     }
     //C[i*n+j]=c;
-    _mm512_storeu_pd(&C[ij], Cijh8);
+    _mm512_storeu_pd(pCij, Cijh8);
     }
     }
 }
@@ -295,8 +310,9 @@ void gemm2_ikj(double*A, int n, int iend, int ib){
             for (j = iend; j < n; j += GEMM2_BLOCK_SIZE)
             {
                 //gemm2_kernel_ijk(A, n, i, j, k);
-                //kernel_Avx512_S4(A,A,A,n,i,j,k);
-                kernel_reg16(A,n,i,j,k);
+                kernel_Avx512_S4(A,A,A,n,i,j,k);
+                //kernel_reg16(A,n,i,j,k);
+                //kernel_reg4(A,A,A,i,j,k,n);
                 //kernel_reg4(A,A,A,i,j,k,n);
                 //kernel_naive(A,A,A,n,i,j,k);
             }
@@ -309,9 +325,9 @@ void gemm2_kij(double*A, int n, int iend, int ib){
             {
                 //gemm2_kernel_ijk(A, n, i, j, k);
                 //kernel_Avx512_S4(A,A,A,n,i,j,k);
-                kernel_reg16(A,n,i,j,k);
+                //kernel_reg16(A,n,i,j,k);
                // kernel_naive(A,A,A,n,i,j,k);
-                //kernel_reg4(A,A,A,i,j,k,n);
+                kernel_reg4(A,A,A,i,j,k,n);
             }
 }
 

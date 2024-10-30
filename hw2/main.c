@@ -16,7 +16,7 @@ int main(int argc,char **argv)
     fclose(pad_file);
     n=((n+pad-1)/pad)*pad;
     printf("n=%d, pad=%d\n",n,pad);
-    size_t alignment = 16;
+    size_t alignment = 4096;
     double *A_backup=(double*)_mm_malloc(n*n*sizeof(double), alignment);
     double *B_backup=(double*)_mm_malloc(n*sizeof(double), alignment);
     double *A=(double*)_mm_malloc(n*n*sizeof(double), alignment);
