@@ -4,6 +4,6 @@ sizes=(1000 2000 3000 4000 5000)
 echo "size,padding,function,time"
 for size in "${sizes[@]}"; do
   ./bench my "$size"
-#  ./bench my_block "$size"
+  ./bench my_block "$size"
   ./bench lapack "$size"
 done

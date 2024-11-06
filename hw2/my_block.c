@@ -342,6 +342,19 @@ int mydgetrf_block(double *A,int *ipiv,int n)
     }
     return 1;
 }
+void geppUv1(double* A, int x1,int x2,int y1,int y2, int multiColumn,int n ){
+    for(int k=0;k<=y2-y1;++k){
+        int x1kn=(x1+k)*n;
+        for(int ii=x1+k+1;ii<=x2;++ii){
+            int iin=ii*n;
+            double A_iinPmc = A[iin+multiColumn];
+        for(int jj=y1+k;jj<=y2;++jj)
+            {
+                A[iin+jj] -= A_iinPmc*A[x1kn+jj];
+            }
+        }
+    }
+}
 /* function geppU(multiColumn, x1,x2,y1,y2) %update the U block
     for k = 0:y2-y1
         for jj=y1+k:y2
@@ -353,9 +366,13 @@ int mydgetrf_block(double *A,int *ipiv,int n)
 end */
 void geppU(double* A, int x1,int x2,int y1,int y2, int multiColumn,int n ){
     for(int k=0;k<=y2-y1;++k){
-        for(int jj=y1+k;jj<=y2;++jj){
-            for(int ii=x1+k+1;ii<=x2;++ii){
-                A[ii*n+jj] -= A[ii*n+multiColumn]*A[(x1+k)*n+jj];
+        int x1kn=(x1+k)*n;
+        for(int ii=x1+k+1;ii<=x2;++ii){
+            int iin=ii*n;
+            double A_iinPmc = A[iin+multiColumn];
+        for(int jj=y1+k;jj<=y2;++jj)
+            {
+                A[iin+jj] -= A_iinPmc*A[x1kn+jj];
             }
         }
     }
