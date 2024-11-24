@@ -11,11 +11,8 @@ extern "C" {
     void calPrePrimes(vector<uint64_t> & primes,const int pid,  const uint64_t high_value,
                       const int pnum, const uint64_t n){
         const uint64_t sieve_low = 3;
-        const uint64_t sieve_high =  3 + 2 * floor((0 + 1) * ((n - 3) / 2 + 1) / pnum) - 2;
+        const uint64_t sieve_high = ceil(floor(sqrt(high_value))/2)*2-1;
         const uint64_t size = (sieve_high - sieve_low) / 2 + 1;//number of integers handled by this process
-
-        //const uint64_t sieve_high = pid==0? high_value : floor(ceil(sqrt(high_value))/2)*2-1;
-        //const uint64_t sieve_high = 3+2*floor(((n-3)/2+1)/pnum)-2;
 
         //printf("prePrimes high_val:%d sieve_high:%d size:%d\n",  high_value, sieve_high,size);
         vector<bool> marked;
@@ -50,7 +47,6 @@ extern "C" {
             primes.push_back(prime);
             prime_prime = prime * prime;
         } while (prime_prime <= n);
-
     }
 void sieve2(uint64_t *global_count, uint64_t n, int pnum, int pid) {
     const uint64_t low_value = 3 + 2 * floor(pid * ((n - 3) / 2 + 1) / pnum);//the smallest value handled by this process
@@ -75,7 +71,7 @@ void sieve2(uint64_t *global_count, uint64_t n, int pnum, int pid) {
     uint64_t index2 = 0;// index of pre Calculated sieving primes
     uint64_t prime = primes[index2];//current prime broadcasted by process 0
     //printf("pid:%d next prime: %d\n", pid, prime);
-    do {
+        do {
         uint64_t idxFst;//index of the first multiple among values handled by this process
         if ( prime * prime > low_value)
             idxFst = ( prime * prime - low_value) / 2; //located the relative offset of prime*prime after low_value
@@ -104,17 +100,16 @@ void sieve2(uint64_t *global_count, uint64_t n, int pnum, int pid) {
         }
     } while ( prime * prime <= n);
 
+//printf("prime:%d high:%d n:%d\n", prime, high_value, n);
 
     uint64_t count = 0;//local count of primes
-    for (uint64_t i = 0; i < size; i++)
+for (uint64_t i = 0; i < size; i++)
         if (marked[i] == 0){
             count++;
-            uint64_t prime2 = low_value+i*2;
-            //printf("pid:%d found prime %d\n", pid, prime2);
         }
-
     if (pid == 0) {
         count++;//add prime 2
+
     }
     //printf("pid:%d, prime count:%d\n", pid, count);
     MPI_Reduce(&count, global_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);

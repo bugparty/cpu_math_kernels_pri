@@ -2,7 +2,7 @@ import os
 
 N_list=[1,2,3,4,5]
 ver_list=[0,1,2,3]
-ver_list=[0]
+ver_list=[2]
 n=10000000000
 
 os.system("module load mpich-3.2.1/gcc-4.8.5")

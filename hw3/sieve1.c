@@ -57,6 +57,7 @@ void sieve1(uint64_t *global_count,uint64_t n,int pnum,int pid)
         }
         MPI_Bcast(&prime,1,MPI_INT,0,MPI_COMM_WORLD);//void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm
     } while (prime*prime<=n);
+    //printf("prime:%d high:%d n:%d\n", prime, high_value, n);
     
     unsigned long long count=0;//local count of primes
     for (unsigned long long i=0;i<size;i++)
