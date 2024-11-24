@@ -1,11 +1,8 @@
 #ifndef __FUNC_CALL_C__
 #define __FUNC_CALL_C__
 
-#include "sieve0.c"
-#include "sieve1.c"
-#include "sieve2.c"
-#include "sieve3.c"
-
+#include "include.h"
+#include "func_call.h"
 void func_call(unsigned long long *global_count,double *time,char *func_name,unsigned long long n,int pnum,int pid)
 {
     if (strcmp(func_name,"sieve0")==0)

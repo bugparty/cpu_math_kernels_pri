@@ -45,6 +45,7 @@ void sieve0(unsigned long long *global_count,unsigned long long n,int pnum,int p
             while (marked[index]==1)
                 index++;
             prime=index+2;
+
         }
         MPI_Bcast(&prime,1,MPI_INT,0,MPI_COMM_WORLD);
     } while (prime*prime<=n);
@@ -53,6 +54,7 @@ void sieve0(unsigned long long *global_count,unsigned long long n,int pnum,int p
     for (unsigned long long i=0;i<size;i++)
         if (marked[i]==0)
             count++;
+    //printf("pid:%d, prime count:%d\n", pid, count);
     MPI_Reduce(&count,global_count,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
 }
 

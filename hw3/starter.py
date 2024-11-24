@@ -2,6 +2,7 @@ import os
 
 N_list=[1,2,3,4,5]
 ver_list=[0,1,2,3]
+ver_list=[0]
 n=10000000000
 
 os.system("module load mpich-3.2.1/gcc-4.8.5")
@@ -29,3 +30,4 @@ if os.path.exists("main"):
     for N in N_list:
         for ver in ver_list:
             os.system("sbatch sieve"+str(ver)+"_"+str(N)+".sh")
+    

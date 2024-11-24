@@ -1,5 +1,5 @@
-#include "func_call.c"
-
+#include "func_call.h"
+#include "include.h"
 int main (int argc, char *argv[])
 {
     if (argc!=3)
