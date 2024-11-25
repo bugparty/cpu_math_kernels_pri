@@ -1,7 +1,7 @@
 CC = gcc
 CXX = g++
 CFLAGS = -I /home/act-software/mpich-3.2.1/include  -march=native -O3
-CXXFLAGS =  -I /home/act-software/mpich-3.2.1/include -march=native -O3
+CXXFLAGS =  -I /home/act-software/mpich-3.2.1/include -march=native -O3 -std=c++11
 LD_FLAGS = -L /home/act-software/mpich-3.2.1/lib -lmpi -lm -march=native -O3
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
@@ -21,9 +21,9 @@ $(TARGET): $(OBJS)  $(CXX_OBJS)
 	$(CXX) $(OBJS)  $(CXX_OBJS)  $(LD_FLAGS) -o $(TARGET)
 
 clean:
-	rm -f $(C_OBJS) $(CXX_OBJS) $(TARGET)
+	rm -f $(C_OBJS) $(CXX_OBJS) $(TARGET) *.o
 
-main3: func_call.c include.h main.c makefile sieve0.c sieve1.c sieve2.cpp sieve3.c
+main3: func_call.c include.h main.c makefile sieve0.c sieve1.c sieve2.cpp sieve3.cpp
 	rm -f main
 	gcc main.c -o main -I /home/act-software/mpich-3.2.1/include -L /home/act-software/mpich-3.2.1/lib -lmpi -lm -march=native -O3
 

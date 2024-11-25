@@ -2,20 +2,20 @@
 #define __SIEVE2_C__
 #include <vector>
 #include <cassert>
+#include "bitvector.hpp"
 using namespace std;
+using namespace bowen;
 #include "include.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-    void calPrePrimes(vector<uint64_t> & primes,const int pid,  const uint64_t high_value,
-                      const int pnum, const uint64_t n){
+
+    void calPrePrimes(vector<uint64_t> & primes, const uint64_t high_value,
+                       const uint64_t n){
         const uint64_t sieve_low = 3;
         const uint64_t sieve_high = ceil(floor(sqrt(high_value))/2)*2-1;
         const uint64_t size = (sieve_high - sieve_low) / 2 + 1;//number of integers handled by this process
 
         //printf("prePrimes high_val:%d sieve_high:%d size:%d\n",  high_value, sieve_high,size);
-        vector<bool> marked;
+        bitvector marked;
         marked.assign(size, 0);
 
         uint64_t index = 0;//index of current prime among all primes (only works for process 0)
@@ -39,9 +39,13 @@ extern "C" {
                 marked[i] = 1;
             } //mark all the mutiple of prime
             index++;
-
-            while (marked[index] == 1)
+            while (index < marked.size() && marked[index] == 1 )
                 index++;
+
+            if(index > marked.size()){
+                break;
+            }
+
             prime = index * 2 + 3;//next prime is the first number not marked.
             //printf("pid:%d next prime %d\n", pid, prime);
             primes.push_back(prime);
@@ -62,10 +66,10 @@ void sieve2(uint64_t *global_count, uint64_t n, int pnum, int pid) {
         MPI_Finalize();
         exit(0);
     }
-    vector<bool> marked;
+    bitvector marked;
     marked.assign(size, 0);
     vector<uint64_t> primes;
-    calPrePrimes(primes, pid, high_value, pnum, n);
+    calPrePrimes(primes,high_value, n);
 
     uint64_t index = 0;//index of current prime among all primes (in local array index)
     uint64_t index2 = 0;// index of pre Calculated sieving primes
@@ -86,6 +90,7 @@ void sieve2(uint64_t *global_count, uint64_t n, int pnum, int pid) {
         }
         for (uint64_t i = idxFst; i < size; i += prime) {
             marked[i] = 1;
+            //marked.set_bit_true_unsafe(i);
         } //mark all the mutiple of prime
         index++;
         //get next prime
@@ -95,6 +100,7 @@ void sieve2(uint64_t *global_count, uint64_t n, int pnum, int pid) {
         }else{
             while (marked[index]==1)
                 index++;
+            //marked.incrementUntilZero(index);
             prime=(index)*2+low_value;//next prime is the first number not marked.
            // printf("pid:%d next prime2 %d\n", pid, prime);
         }
@@ -114,7 +120,5 @@ for (uint64_t i = 0; i < size; i++)
     //printf("pid:%d, prime count:%d\n", pid, count);
     MPI_Reduce(&count, global_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 }
-    #ifdef __cplusplus
-    }
-    #endif
+
 #endif

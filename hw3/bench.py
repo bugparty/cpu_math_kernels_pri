@@ -1,15 +1,16 @@
+#/bin/env python
 import os
 
 N_list=[1,2,3,4,5]
 ver_list=[0,1,2,3]
-ver_list=[2]
-N_list=[1,2,3,4,5]
+ver_list=[2,3]
+N_list=[5]
 n=10000000000
 
 os.system("module load mpich-3.2.1/gcc-4.8.5")
-os.system("make")
+os.system("make clean && make")
 if os.path.exists("main"):
-    os.system("mkdir sh")
+    os.system("mkdir -p sh")
     for N in N_list:
         for ver in ver_list:
             f=open("sh/sieve"+str(ver)+"_"+str(N)+".sh","w")
