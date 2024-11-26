@@ -7,8 +7,10 @@
 using namespace std;
 using namespace bowen;
 #include "include.h"
-
-
+#include <xmmintrin.h>
+#include <emmintrin.h>
+//#include <immintrin.h>
+#pragma GCC target("popcnt")
 static void calPrePrimes(vector<uint64_t> & primes, const uint64_t high_value,
                        const uint64_t n){
         const uint64_t sieve_low = 3;
@@ -67,7 +69,7 @@ void sieve3(unsigned long long *global_count,unsigned long long n,int pnum,int p
     vector<uint64_t> primes;
 
     calPrePrimes(primes,high_value, n);
-    constexpr int BLOCK_SIZE= 5000000;
+    constexpr int BLOCK_SIZE= 1e6;
     int BLOCK_COUNT = (size +BLOCK_SIZE-1)/BLOCK_SIZE;
     for(int blockid =0; blockid < BLOCK_COUNT;++blockid){
         uint64_t block_low = low_value+2*BLOCK_SIZE*blockid;
@@ -98,12 +100,19 @@ void sieve3(unsigned long long *global_count,unsigned long long n,int pnum,int p
 #ifdef PRINT_ALL_PRIME
             printf("marking multi of %zd\n",prime);
 #endif
-            for (uint64_t i = offset_i+idxFst; i < limit_i; i += prime) {
-                marked[i] = 1;
+            uint64_t i = offset_i + idxFst;
+            constexpr int STRIDE = 6;
+            for (; i < limit_i-STRIDE*prime; i += prime*STRIDE) {
+                for (int j=0;j<STRIDE;j++) {
+                    marked.set_bit_true_unsafe(i+prime*j);
+                }
 #ifdef PRINT_ALL_PRIME
                 printf("%zd\t",block_low+2*i);
 #endif
             } //mark all the mutiple of prime
+            for (; i < limit_i; i += prime) {
+                marked[i] = 1;
+            }
 #ifdef PRINT_ALL_PRIME
             printf("\n");
 #endif
@@ -125,10 +134,20 @@ void sieve3(unsigned long long *global_count,unsigned long long n,int pnum,int p
 //printf("prime:%d high:%d n:%d\n", prime, high_value, n);
 
     uint64_t count = 0;//local count of primes
-    for (uint64_t i = 0; i < size; i++)
-        if (marked[i] == 0){
+    uint64_t i = 0;
+    constexpr uint64_t STRIDE = 32*8;
+    uint64_t size2 = size / STRIDE;
+    size2 *= STRIDE;
+    for (i = 0; i < size2; i += STRIDE) {
+        for(int k=0;k<STRIDE;k+=32){
+            count+= _mm_popcnt_u32(~(*(marked.data()+(i+k)/32)));
+        }
+    }
+    for (; i < size; i++)
+        if (marked[i] == 0) {
             count++;
         }
+
     if (pid == 0) {
         count++;//add prime 2
     }
