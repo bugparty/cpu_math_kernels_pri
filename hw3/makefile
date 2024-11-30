@@ -1,8 +1,8 @@
 CC = gcc
 CXX = g++
-CFLAGS = -I /home/act-software/mpich-3.2.1/include  -march=native -mpopcnt -mavx512bw   -O3
-CXXFLAGS =  -I /home/act-software/mpich-3.2.1/include   -march=native  -mpopcnt -mavx512bw  -O3 -std=c++14
-LD_FLAGS = -L /home/act-software/mpich-3.2.1/lib -lmpi -lm -march=native -mpopcnt -mavx512bw   -O3
+CFLAGS = -I /home/act-software/mpich-3.2.1/include  -march=native -mpopcnt -mavx -mavx512bw -mavx512f   -O3
+CXXFLAGS =  -I /home/act-software/mpich-3.2.1/include   -march=native  -mpopcnt -mavx -mavx512bw -mavx512f  -O3 -std=c++17
+LD_FLAGS = -L /home/act-software/mpich-3.2.1/lib -lmpi -lm -march=native -mpopcnt -mavx -mavx512bw -mavx512f  -O3
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
 
