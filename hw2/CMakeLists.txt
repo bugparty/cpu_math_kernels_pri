@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(matlab)
+project(cs211_hw2 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 14)
 
 add_compile_options(-march=native)
@@ -13,9 +13,9 @@ link_directories(./extern)
 set(LINK_FLAGS "-O3 -march=native -DMKL_ILP64 -lmkl_avx2 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -m64")
 
 # Add the executable target for the main application
-add_executable(main main.c)
-set_target_properties(main PROPERTIES LINK_FLAGS "${LINK_FLAGS}")
+add_executable(hw2_main main.c)
+set_target_properties(hw2_main PROPERTIES LINK_FLAGS "${LINK_FLAGS}")
 
-add_executable(test1 test1.c)
-set_target_properties(test1 PROPERTIES LINK_FLAGS "${LINK_FLAGS}")
+add_executable(hw2_test1 test1.c)
+set_target_properties(hw2_test1 PROPERTIES LINK_FLAGS "${LINK_FLAGS}")
 
