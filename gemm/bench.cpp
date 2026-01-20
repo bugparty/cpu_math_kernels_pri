@@ -64,15 +64,17 @@ std::vector<KernelEntry> build_kernels() {
         {"dgemm3", dgemm3},
         {"dgemm3v2", dgemm3v2},
         {"dgemmBT1", dgemmBT1},
+#ifdef __AVX512F__
         {"dgemm7", dgemm7},
+#endif
         {"dgemm7_ijk", dgemm7_ijk},
         {"dgemm7_kij", dgemm7_kij},
         {"dgemm7_ikj", dgemm7_ikj},
         {"dgemmAVX", dgemmAVX},
+#ifdef __AVX512F__
         {"dgemmAVX512", dgemmAVX512},
         {"dgemmAVX512B", dgemmAVX512B},
-        {"dgemmAVX_T_B16", dgemmAVX_T_B16},
-        {"dgemmAVX512B2", dgemmAVX512B2},
+#endif
     };
 }
 
@@ -94,8 +96,16 @@ int main(int argc, char **argv) {
     constexpr int repeats = 3;
 
     auto kernels = build_kernels();
+    
+    // Special argument to print max kernel index
+    if (argc == 2 && (std::string(argv[1]) == "--count" || std::string(argv[1]) == "-c")) {
+        std::cout << kernels.size() - 1 << std::endl;
+        return 0;
+    }
+    
     if (argc != 2) {
         std::cout << "Usage: ./bench <kernel_index>\n";
+        std::cout << "       ./bench --count   # Print max kernel index\n";
         print_kernel_menu(kernels);
         return 1;
     }

@@ -1,0 +1,98 @@
+name: GEMM Benchmarks
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          libopenmpi-dev \
+          openmpi-bin \
+          libopenblas-dev \
+          liblapack-dev \
+          liblapacke-dev
+    
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DBUILD_HW1=ON -DBUILD_HW2=OFF -DBUILD_HW3=OFF
+    
+    - name: Build project
+      run: |
+        cd build
+        make gemm_bench -j$(nproc)
+    
+    - name: Verify build
+      run: |
+        ls -lh build/gemm/gemm_bench
+        ./build/gemm/gemm_bench --count
+    
+    - name: Run benchmarks
+      run: |
+        cd gemm
+        mkdir -p benchmark_results
+        ./run_all_benchmarks.sh benchmark_results
+      timeout-minutes: 120  # 2 hours max
+      continue-on-error: true  # Don't fail if benchmark times out
+    
+    - name: Generate CSV results
+      if: always()
+      run: |
+        cd gemm
+        ./quick_bench.sh benchmark_results.csv || true
+    
+    - name: Create summary
+      if: always()
+      run: |
+        cd gemm
+        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f benchmark_results.csv ]; then
+          echo "### Performance Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -20 benchmark_results.csv | column -t -s, >> $GITHUB_STEP_SUMMARY || cat benchmark_results.csv | head -20 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Available Kernels" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        ../build/gemm/gemm_bench 2>&1 | grep -A 20 "Please select" || echo "Could not list kernels"
+        echo '```' >> $GITHUB_STEP_SUMMARY
+    
+    - name: Upload benchmark results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: |
+          gemm/benchmark_results/
+          gemm/benchmark_results.csv
+        retention-days: 30
+    
+    - name: Upload build artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: gemm-bench-executable
+        path: build/gemm/gemm_bench
+        retention-days: 7

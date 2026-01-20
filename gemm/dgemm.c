@@ -388,6 +388,7 @@ void dgemmAVX(double *C,double *A,double *B,int n)
 /*
  *28s n2048
  */
+#ifdef __AVX512F__
 void dgemmAVX512(double *C,double *A,double *B,int n)
 {
 
@@ -427,7 +428,9 @@ void dgemmAVX512(double *C,double *A,double *B,int n)
         }
     }
 }
+#endif // __AVX512F__
 // speed: 7s O3 1.3s
+#ifdef __AVX512F__
 void kernel_Avx512(double *C,double *A,double *B,int n,int i,int j,int k)
 {
     register int ii,jj,kk;
@@ -466,6 +469,8 @@ void kernel_Avx512(double *C,double *A,double *B,int n,int i,int j,int k)
         }
     }
 }
+#endif // __AVX512F__
+#ifdef __AVX512F__
 void dgemmAVX512B(double *C,double *A,double *B,int n)
 {
     int i, j, k;
@@ -476,6 +481,8 @@ void dgemmAVX512B(double *C,double *A,double *B,int n)
                 kernel_Avx512(C,A,B,n,i,j,k);
             }
 }
+#endif // __AVX512F__
+#ifdef __AVX512F__
 void kernel_Avx512_S4(double *C,double *A,double *B,int n,int i,int j,int k)
 {
 register int ii,jj,kk;
@@ -524,6 +531,8 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
     }
     }
 }
+#endif // __AVX512F__
+#ifdef __AVX512F__
 void kernel_Avx512_S6(double *C,double *A,double *B,int n,int i,int j,int k)
 {
     register int ii,jj,kk;
@@ -578,6 +587,8 @@ void kernel_Avx512_S6(double *C,double *A,double *B,int n,int i,int j,int k)
         }
     }
 }
+#endif // __AVX512F__
+#ifdef __AVX512F__
 void dgemm7(double *C,double *A,double *B,int n)
 {
     int i, j, k;
@@ -588,3 +599,4 @@ void dgemm7(double *C,double *A,double *B,int n)
                 kernel_Avx512_S4(C,A,B,n,i,j,k);
             }
 }
+#endif // __AVX512F__
