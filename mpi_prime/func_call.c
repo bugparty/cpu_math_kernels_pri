@@ -19,7 +19,7 @@ void func_call(unsigned long long *global_count,double *time,char *func_name,uns
         *time+=MPI_Wtime();
         return; 
     }
-    if (strcmp(func_name,"sieve2")==0)
+    /*if (strcmp(func_name,"sieve2")==0)
     {
         *time=-MPI_Wtime();
         sieve2(global_count,n,pnum,pid);
@@ -32,7 +32,7 @@ void func_call(unsigned long long *global_count,double *time,char *func_name,uns
         sieve3(global_count,n,pnum,pid);
         *time+=MPI_Wtime();
         return; 
-    }
+    }*/
     printf("Error: Invalid function name\n");
     exit(0);
 }

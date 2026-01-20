@@ -9,15 +9,14 @@ set(CMAKE_CXX_STANDARD 17)
 # Set compiler flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -O3")
-# Include directories
-include_directories(/home/act-software/mpich-3.2.1/include)
 
-# Link directories
-link_directories(/home/act-software/mpich-3.2.1/lib)
+# Find MPI
+find_package(MPI REQUIRED)
+include_directories(${MPI_C_INCLUDE_PATH})
 
 # Add executable
 add_executable(hw3_main main.c
-        func_call.c sieve0.c sieve1.c sieve2.cpp sieve3.cpp)
+        func_call.c sieve0.c sieve1.c)
 
 # Link libraries
-target_link_libraries(hw3_main mpi m)
+target_link_libraries(hw3_main ${MPI_C_LIBRARIES} m)

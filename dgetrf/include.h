@@ -8,7 +8,7 @@
 #include <sys/time.h>
 #include <immintrin.h>
 #include <math.h>
-#include "mkl.h"
-#include "mkl_lapacke.h"
+#include <cblas.h>
+#include <lapacke.h>
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
