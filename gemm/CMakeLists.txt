@@ -7,3 +7,19 @@ add_executable(gemm_bench
         bench.cpp
         dgemm.h)
 target_compile_options(gemm_bench PRIVATE -march=native  ${OPTIMIZATION_LEVEL})
+
+add_executable(gemm_bench_all
+        dgemm.c
+        bench_all.cpp
+        dgemm.h)
+target_compile_options(gemm_bench_all PRIVATE -march=native ${OPTIMIZATION_LEVEL})
+
+add_executable(transpose_bench
+        transpose_bench.cpp
+        common.h
+        transpose_avx512.h
+        transpose_recursive.h
+        transpose_prefetch.h
+        transpose_nontemporal.h
+        transpose_2level.h)
+target_compile_options(transpose_bench PRIVATE -march=native ${OPTIMIZATION_LEVEL})

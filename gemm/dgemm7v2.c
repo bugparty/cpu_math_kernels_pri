@@ -2,7 +2,7 @@
 #define BLOCK_SIZE 64
 
 
-void kernel_Avx512_S4(double *C,double *A,double *B,int n,int i,int j,int k)
+void kernel_Avx512_S4_v2(double *C,double *A,double *B,int n,int i,int j,int k)
 {
 register int m,n_,k_;
 for (m=i;m<i+BLOCK_SIZE;m++)
@@ -55,7 +55,7 @@ for (m=i;m<i+BLOCK_SIZE;m++)
     }
 }
 //state of art 
-void dgemm7(double *C,double *A,double *B,int n)
+void dgemm7_v2(double *C,double *A,double *B,int n)
 {
     // Iterate over 64x64 blocks in blocking order: row blocks -> k-accumulation blocks -> column blocks
     int block_i, block_k, block_j;
@@ -63,6 +63,6 @@ void dgemm7(double *C,double *A,double *B,int n)
         for (block_k = 0; block_k < n; block_k += BLOCK_SIZE)
             for (block_j = 0; block_j < n; block_j += BLOCK_SIZE)
             {
-                kernel_Avx512_S4(C,A,B,n,block_i,block_j,block_k);
+                kernel_Avx512_S4_v2(C,A,B,n,block_i,block_j,block_k);
             }
 }

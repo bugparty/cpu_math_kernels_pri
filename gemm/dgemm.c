@@ -1,4 +1,5 @@
 #include "dgemm.h"
+#include "common.h"
 #include <immintrin.h>
 void dgemm3(double *C,double *A,double *B,int n)
 {
@@ -101,12 +102,7 @@ for(i=0;i<n;i+=STRIDE){
 
 }
 void transpose( const double  * const A, double * const  A_T, int n) {
-    register int i,j;
-    for (i = 0; i < n; ++i) {
-        for (j = 0; j < n; ++j) {
-            A_T[j*n+ i] = A[i*n+j];
-        }
-    }
+    transpose_tiled(A, A_T, n);
 }
 void dgemm1(double *C,double *A,double *B,int n)
 {
