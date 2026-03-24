@@ -1,6 +1,9 @@
 #include "dgemm.h"
 #include "common.h"
 #include <immintrin.h>
+
+extern "C" {
+
 void dgemm3(double *C,double *A,double *B,int n)
 {
     for(int i=0;i<n;i+=2){
@@ -596,3 +599,5 @@ void dgemm7(double *C,double *A,double *B,int n)
             }
 }
 #endif // __AVX512F__
+
+} // extern "C"

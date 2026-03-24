@@ -15,6 +15,10 @@ extern "C" {
     void dgemmAVX512(double *C,double *A,double *B,int n);
     void dgemmAVX512B(double *C,double *A,double *B,int n);
 #endif
+    void dgemm71(double *C,double *A,double *B,int n);
+    void dgemm72(double *C,double *A,double *B,int n);
+    void dgemm74(double *C,double *A,double *B,int n);
+    void dgemm7_raw(double *C,double *A,double *B,int n);
     void dgemm7_ijk(double *C,double *A,double *B,int n);
     void dgemm7_kij(double *C,double *A,double *B,int n);
     void dgemm7_ikj(double *C,double *A,double *B,int n);

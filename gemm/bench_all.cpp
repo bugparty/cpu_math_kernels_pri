@@ -11,6 +11,7 @@
 
 #include "../benchmark.h"
 #include "dgemm.h"
+#include "dgemm7olds.h"
 
 // B_T is declared extern in dgemm.h; we own the allocation here
 double *B_T = nullptr;
@@ -156,6 +157,10 @@ REGISTER_GEMM_SLOW("dgemm1",     dgemm1,            1000);
 REGISTER_GEMM_SLOW("dgemm3",     dgemm3,            1000);
 REGISTER_GEMM_SLOW("dgemm3v2",   dgemm3v2,          1000);
 REGISTER_GEMM     ("dgemmBT1",   dgemmBT1);
+REGISTER_GEMM     ("dgemm71",    dgemm71);
+REGISTER_GEMM     ("dgemm72",    dgemm72);
+REGISTER_GEMM     ("dgemm74",    dgemm74);
+REGISTER_GEMM     ("dgemm7_raw", dgemm7_raw);
 REGISTER_GEMM     ("dgemm7_ijk", dgemm7_ijk);
 REGISTER_GEMM     ("dgemm7_kij", dgemm7_kij);
 REGISTER_GEMM     ("dgemm7_ikj", dgemm7_ikj);
