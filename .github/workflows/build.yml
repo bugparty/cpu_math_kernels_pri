@@ -1,0 +1,63 @@
+name: build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          build-essential \
+          cmake \
+          libopenmpi-dev \
+          openmpi-bin \
+          intel-mkl \
+          libopenblas-dev \
+          liblapack-dev \
+          liblapacke-dev
+
+    - name: Configure CMake
+      run: |
+        cmake -S . -B build \
+          -DBUILD_HW1=ON \
+          -DBUILD_HW2=ON \
+          -DBUILD_HW3=ON \
+          -DGEMM_MKL_ROOT=/usr \
+          -DMKL_ROOT=/usr
+
+    - name: Build all subprojects
+      run: |
+        cmake --build build --parallel
+
+    - name: Verify build outputs
+      run: |
+        ls -lh build/gemm/gemm_bench_all
+        ls -lh build/dgetrf/dgetrf_bench_all
+        ls -lh build/mpi_prime/hw3_main
+
+    - name: Upload build artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          build/gemm/gemm_bench
+          build/gemm/gemm_bench_all
+          build/gemm/transpose_bench
+          build/dgetrf/hw2_main
+          build/dgetrf/hw2_test1
+          build/dgetrf/dgetrf_bench_all
+          build/mpi_prime/hw3_main
+        retention-days: 7

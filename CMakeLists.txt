@@ -25,7 +25,6 @@ if(BUILD_HW2)
     add_subdirectory(dgetrf)
 endif()
 
-
-#if(BUILD_HW3)
-#    add_subdirectory(mpi_prime)
-#endif()
+if(BUILD_HW3)
+    add_subdirectory(mpi_prime)
+endif()
