@@ -1,0 +1,109 @@
+name: GEMM Benchmarks
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          build-essential \
+          cmake \
+          libopenmpi-dev \
+          openmpi-bin \
+          libopenblas-dev \
+          liblapack-dev \
+          liblapacke-dev \
+          intel-mkl
+    
+    - name: Configure CMake
+      run: |
+        echo "CPU Information:"
+        cat /proc/cpuinfo | grep 'model name' | uniq
+        echo "Supported instruction sets (AVX2/AVX512):"
+        cat /proc/cpuinfo | grep -E 'avx2|avx512' | uniq
+        mkdir -p build
+        cd build
+
+        # Check if AVX512 is supported
+        if cat /proc/cpuinfo | grep -q avx512; then
+            echo "AVX512 is supported. Using AVX512 flags."
+            ARCH_FLAGS="-mavx512f;-mavx512dq;-mavx512vl;-mfma"
+        else
+            echo "AVX512 is NOT supported. Using AVX2 flags."
+            ARCH_FLAGS="-mavx2;-mfma"
+        fi
+
+        cmake .. \
+          -DBUILD_HW1=ON \
+          -DBUILD_HW2=OFF \
+          -DBUILD_HW3=OFF \
+          "-DARCH_FLAGS=${ARCH_FLAGS}" \
+          -DGEMM_MKL_ROOT=/usr
+    
+    - name: Build project
+      run: |
+        cd build
+        make gemm_bench_all -j$(nproc)
+    
+    - name: Verify build
+      run: |
+        ls -lh build/gemm/gemm_bench_all
+        ./build/gemm/gemm_bench_all --iters 1 --warmup 0 --sizes 96
+    
+    - name: Run benchmarks
+      run: |
+        mkdir -p benchmark_results
+        ./build/gemm/gemm_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/gemm_bench_all.log
+      timeout-minutes: 120  # 2 hours max
+      continue-on-error: true  # Don't fail if benchmark times out
+    
+    - name: Create summary
+      if: always()
+      run: |
+        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f benchmark_results/gemm_bench_all.log ]; then
+          echo "### Performance Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -120 benchmark_results/gemm_bench_all.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Benchmark Command" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "./build/gemm/gemm_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+    
+    - name: Upload benchmark results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: |
+          benchmark_results/
+        retention-days: 30
+    
+    - name: Upload build artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: gemm-bench-all-executable
+        path: build/gemm/gemm_bench_all
+        retention-days: 7

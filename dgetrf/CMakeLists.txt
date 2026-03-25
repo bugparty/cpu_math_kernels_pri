@@ -1,0 +1,99 @@
+﻿cmake_minimum_required(VERSION 3.10)
+project(cs211_hw2 LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 14)
+
+if(MSVC)
+    add_compile_options($<$<CONFIG:Release>:/O2> $<$<CONFIG:RelWithDebInfo>:/O2>)
+else()
+    add_compile_options(-O3 -march=native)
+endif()
+
+# Intel MKL configuration
+set(USE_MKL FALSE)
+set(MKL_ROOT "" CACHE PATH "Path to Intel MKL root directory")
+set(HAVE_EXTERNAL_BLAS_LAPACK FALSE)
+
+# Try to auto-detect MKL on Windows
+if(WIN32 AND NOT MKL_ROOT)
+    # Try environment variables first
+    if(DEFINED ENV{MKLROOT})
+        set(MKL_ROOT "$ENV{MKLROOT}" CACHE PATH "Path to Intel MKL root directory" FORCE)
+    elseif(DEFINED ENV{ONEAPI_ROOT})
+        set(MKL_ROOT "$ENV{ONEAPI_ROOT}/mkl/latest" CACHE PATH "Path to Intel MKL root directory" FORCE)
+    else()
+        # Fallback to common oneAPI install locations on Windows
+        set(_DGETRF_MKL_CANDIDATES
+            "C:/Program Files (x86)/Intel/oneAPI/mkl/latest"
+            "C:/Program Files/Intel/oneAPI/mkl/latest")
+        foreach(_mkl_candidate IN LISTS _DGETRF_MKL_CANDIDATES)
+            if(EXISTS "${_mkl_candidate}/include/mkl.h")
+                set(MKL_ROOT "${_mkl_candidate}" CACHE PATH "Path to Intel MKL root directory" FORCE)
+                break()
+            endif()
+        endforeach()
+    endif()
+endif()
+
+# Configure MKL if path is specified
+if(MKL_ROOT AND EXISTS "${MKL_ROOT}/include/mkl.h")
+    set(USE_MKL TRUE)
+    set(HAVE_EXTERNAL_BLAS_LAPACK TRUE)
+    include_directories("${MKL_ROOT}/include")
+    if(EXISTS "${MKL_ROOT}/lib/intel64")
+        set(MKL_LIB_DIR "${MKL_ROOT}/lib/intel64")
+    else()
+        set(MKL_LIB_DIR "${MKL_ROOT}/lib")
+    endif()
+    link_directories("${MKL_LIB_DIR}")
+    
+    # For Visual Studio / Windows MSVC
+    if(MSVC)
+        set(MATH_LIBS "mkl_intel_lp64.lib;mkl_sequential.lib;mkl_core.lib")
+    else()
+        set(MATH_LIBS "mkl_intel_lp64;mkl_sequential;mkl_core")
+    endif()
+    
+    message(STATUS "Intel MKL configured at: ${MKL_ROOT}")
+    message(STATUS "Using MKL libraries: ${MATH_LIBS}")
+else()
+    # Try to find OpenBLAS as alternative
+    if(MSVC)
+        set(HAVE_EXTERNAL_BLAS_LAPACK FALSE)
+        set(MATH_LIBS "")
+        message(WARNING "MKL not configured on MSVC; external BLAS/LAPACK disabled. 'lapack' solver mode will be unavailable.")
+    else()
+        find_package(BLAS QUIET)
+        find_package(LAPACK QUIET)
+        if(BLAS_FOUND AND LAPACK_FOUND)
+            set(HAVE_EXTERNAL_BLAS_LAPACK TRUE)
+            set(MATH_LIBS ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+            message(STATUS "Using system BLAS and LAPACK")
+        else()
+            set(HAVE_EXTERNAL_BLAS_LAPACK FALSE)
+            set(MATH_LIBS "")
+            message(WARNING "BLAS/LAPACK not found. 'lapack' solver mode will be unavailable.")
+        endif()
+    endif()
+endif()
+
+# Add the executable target for the main application
+add_executable(hw2_main main.cpp)
+target_compile_definitions(hw2_main PRIVATE DGETRF_HAVE_EXTERNAL_BLAS_LAPACK=$<IF:$<BOOL:${HAVE_EXTERNAL_BLAS_LAPACK}>,1,0>)
+if(MATH_LIBS)
+    if(NOT MSVC)
+        target_link_libraries(hw2_main ${MATH_LIBS} m pthread)
+    else()
+        target_link_libraries(hw2_main ${MATH_LIBS})
+    endif()
+endif()
+
+add_executable(hw2_test1 test1.c)
+target_compile_definitions(hw2_test1 PRIVATE DGETRF_HAVE_EXTERNAL_BLAS_LAPACK=$<IF:$<BOOL:${HAVE_EXTERNAL_BLAS_LAPACK}>,1,0>)
+if(MATH_LIBS)
+    if(NOT MSVC)
+        target_link_libraries(hw2_test1 ${MATH_LIBS} m pthread)
+    else()
+        target_link_libraries(hw2_test1 ${MATH_LIBS})
+    endif()
+endif()
+

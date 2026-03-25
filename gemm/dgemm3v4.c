@@ -1,0 +1,38 @@
+void dgemm3(double *C,double *A,double *B,int n)
+{
+int i,j,k;
+for(int i=0;i<n;i+=2){
+     for(int j=0;j<n;j+=4){
+          register double c00,c01,c10,c11;
+          register double c20,c21,c30,c31;
+          register int t1,t2;
+          t1 = i*n+j;t2 = t1+n;
+          c00=C[t1];
+          c01=C[t1+1];c20=C[t1+2];c21=C[t1+3];
+          c10=C[t2];
+          c11=C[t2+1];c30=C[t2+2];c31=C[t2+3];
+          
+          for(int k=0;k<n;k+=2){
+               register int ta = i*n+k; register int tta = ta+n; register int tb = k*n+j; register int ttb = tb+n;
+               register double a00 = A[ta],a01 = A[ta+1], a10 = A[tta],a11 = A[tta+1];
+               register double b00 = B[tb], b01 = B[tb+1];
+               c00 += a00*b00 ; c01 += a00*b01 ; c10 += a10*b00 ; c11 += a10*b01 ;
+               b00 = B[ttb]; b01 = B[ttb+1];
+               c00 += a01*b00 ; c01 += a01*b01 ; c10 += a11*b00 ; c11 += a11*b01 ;
+               b00 = B[tb+2]; b01 = B[tb+3];
+               c20 += a00*b00 ; c21 += a00*b01 ; c30 += a10*b00 ; c31 += a10*b01 ;
+               b00 = B[ttb+2]; b01 = B[ttb+3];
+               c20 += a01*b00 ; c21 += a01*b01 ; c30 += a11*b00 ; c31 += a11*b01 ;
+          }
+          C[t1]=c00;
+          C[t1+1]=c01;
+          C[t1+2]=c20;
+          C[t1+3]=c21;
+          C[t2]=c10;
+          C[t2+1]=c11;
+          C[t2+2]=c30;
+          C[t2+3]=c31;
+     }
+}
+      
+}

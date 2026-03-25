@@ -1,0 +1,162 @@
+#ifndef __SIEVE3_C__
+#define __SIEVE3_C__
+
+#include <vector>
+#include <cassert>
+#include "bitvector.hpp"
+using namespace std;
+using namespace bowen;
+#include "include.h"
+#include <xmmintrin.h>
+#include <emmintrin.h>
+//#include <immintrin.h>
+#pragma GCC target("popcnt")
+static void calPrePrimes(vector<uint64_t> & primes, const uint64_t high_value,
+                       const uint64_t n){
+        const uint64_t sieve_low = 3;
+        const uint64_t sieve_high = ceil(floor(sqrt(high_value))/2)*2-1;
+        const uint64_t size = (sieve_high - sieve_low) / 2 + 1;//number of integers handled by this process
+
+        //printf("prePrimes high_val:%d sieve_high:%d size:%d\n",  high_value, sieve_high,size);
+        bitvector marked;
+        marked.assign(size, 0);
+
+        uint64_t index = 0;//index of current prime among all primes (only works for process 0)
+        uint64_t prime = 3;//current prime broadcasted by process 0
+        primes.push_back(prime);
+        uint64_t prime_prime= prime * prime;
+        do {
+            uint64_t idxFst;//index of the first multiple among values handled by this process
+            if (prime_prime > sieve_low)
+                idxFst = (prime_prime - sieve_low) / 2; //located the relative offset of prime*prime after low_value
+                // it is because the k*prime when k < prime, is already marked by others if k is a prime smaller
+            else// prime^2 < low_value
+            if (sieve_low % prime == 0)//low_value is mutiple of prime
+                idxFst = 0;
+            else {//low_value%prime is the difference of low_value and prime
+                uint64_t first_val = prime * (floor((sieve_low / prime + 1) / 2) * 2 + 1);
+                idxFst = (first_val - sieve_low) /
+                         2;//The remainder tells us how far low_value is from being a multiple of prime
+            }
+            for (uint64_t i = idxFst; i < size; i += prime) {
+                marked[i] = 1;
+            } //mark all the mutiple of prime
+            index++;
+            while (index < marked.size() && marked[index] == 1 )
+                index++;
+
+            if(index > marked.size()){
+                break;
+            }
+
+            prime = index * 2 + 3;//next prime is the first number not marked.
+            //printf("pid:%d next prime %d\n", pid, prime);
+            primes.push_back(prime);
+            prime_prime = prime * prime;
+        } while (prime_prime <= n);
+    }
+
+void sieve3(unsigned long long *global_count,unsigned long long n,int pnum,int pid)
+{
+        const uint64_t low_value = 3 + 2 * floor(pid * ((n - 3) / 2 + 1) / pnum);//the smallest value handled by this process
+        const uint64_t high_value =
+                3 + 2 * floor((pid + 1) * ((n - 3) / 2 + 1) / pnum) - 2;//the largest value handled by this process
+        const uint64_t size = (high_value - low_value) / 2 + 1;//number of integers handled by this process
+    //printf("pid:%d low:%d high:%d size:%d\n",pid, low_value, high_value, size);
+
+    bitvector marked;
+    marked.assign(size, 0);
+    vector<uint64_t> primes;
+
+    calPrePrimes(primes,high_value, n);
+    constexpr int BLOCK_SIZE= 1e6;
+    int BLOCK_COUNT = (size +BLOCK_SIZE-1)/BLOCK_SIZE;
+    for(int blockid =0; blockid < BLOCK_COUNT;++blockid){
+        uint64_t block_low = low_value+2*BLOCK_SIZE*blockid;
+        uint64_t block_high = std::min(block_low + 2*BLOCK_SIZE, high_value);
+
+        uint64_t index = 0;//index of current prime among all primes (in local array index)
+        uint64_t index2 = 0;// index of pre Calculated sieving primes
+        uint64_t prime = primes[index2];//current prime broadcasted by process 0
+        const uint64_t offset_i =  blockid*BLOCK_SIZE;
+        const uint64_t limit_i = std::min(offset_i+BLOCK_SIZE,size);
+#ifdef PRINT_BLOCK_INFO
+        printf("block low:%zd block high:%zd\n", block_low, block_high);
+#endif
+        //printf("pid:%d next prime: %d\n", pid, prime);
+        do {
+            uint64_t idxFst;//index of the first multiple among values handled by this process
+            if ( prime * prime > block_low)
+                idxFst = ( prime * prime - block_low) / 2; //located the relative offset of prime*prime after low_value
+                // it is because the k*prime when k < prime, is already marked by others if k is a prime smaller
+            else// prime^2 < low_value
+            if (block_low % prime == 0)//low_value is mutiple of prime
+                idxFst = 0;
+            else {//low_value%prime is the difference of low_value and prime
+                uint64_t first_val = prime * (floor((block_low / prime + 1) / 2) * 2 + 1);
+                idxFst = (first_val - block_low) /
+                         2;//The remainder tells us how far low_value is from being a multiple of prime
+            }
+#ifdef PRINT_ALL_PRIME
+            printf("marking multi of %zd\n",prime);
+#endif
+            uint64_t i = offset_i + idxFst;
+            constexpr int STRIDE = 6;
+            for (; i < limit_i-STRIDE*prime; i += prime*STRIDE) {
+                for (int j=0;j<STRIDE;j++) {
+                    marked.set_bit_true_unsafe(i+prime*j);
+                }
+#ifdef PRINT_ALL_PRIME
+                printf("%zd\t",block_low+2*i);
+#endif
+            } //mark all the mutiple of prime
+            for (; i < limit_i; i += prime) {
+                marked[i] = 1;
+            }
+#ifdef PRINT_ALL_PRIME
+            printf("\n");
+#endif
+            index++;
+            //get next prime
+            if(++index2 < primes.size()){
+                 prime = primes[index2];
+                //printf("pid:%d next prime: %d\n", pid, prime);
+            }else{
+                while (marked[index]==1)
+                    index++;
+
+                prime=(index)*2+block_low;//next prime is the first number not marked.
+               // printf("pid:%d next prime2 %d\n", pid, prime);
+            }
+        } while ( prime * prime <= n);
+    }
+
+//printf("prime:%d high:%d n:%d\n", prime, high_value, n);
+
+    uint64_t count = 0;//local count of primes
+    uint64_t i = 0;
+    constexpr uint64_t STRIDE = 32*8;
+    uint64_t size2 = size / STRIDE;
+    size2 *= STRIDE;
+    for (i = 0; i < size2; i += STRIDE) {
+        for(int k=0;k<STRIDE;k+=32){
+            count+= _mm_popcnt_u32(~(*(marked.data()+(i+k)/32)));
+        }
+    }
+    for (; i < size; i++)
+        if (marked[i] == 0) {
+            count++;
+        }
+
+    if (pid == 0) {
+        count++;//add prime 2
+    }
+    //printf("pid:%d, prime count:%d\n", pid, count);
+#ifdef DEBUG_SINGLE_THREAD
+    *global_count=count;
+#else
+    MPI_Reduce(&count, global_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+#endif
+}
+
+#endif
