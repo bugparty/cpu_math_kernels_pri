@@ -97,3 +97,13 @@ if(MATH_LIBS)
     endif()
 endif()
 
+add_executable(dgetrf_bench_all bench_all.cpp)
+target_compile_definitions(dgetrf_bench_all PRIVATE DGETRF_HAVE_EXTERNAL_BLAS_LAPACK=$<IF:$<BOOL:${HAVE_EXTERNAL_BLAS_LAPACK}>,1,0>)
+if(MATH_LIBS)
+    if(NOT MSVC)
+        target_link_libraries(dgetrf_bench_all ${MATH_LIBS} m pthread)
+    else()
+        target_link_libraries(dgetrf_bench_all ${MATH_LIBS})
+    endif()
+endif()
+

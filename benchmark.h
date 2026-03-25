@@ -24,7 +24,7 @@ struct BenchmarkResult {
 };
 
 // ---------------------------------------------------------------------------
-// BenchmarkBase — each benchmark module implements this interface
+// BenchmarkBase - each benchmark module implements this interface
 // ---------------------------------------------------------------------------
 struct BenchmarkBase {
     virtual ~BenchmarkBase() = default;
@@ -55,7 +55,7 @@ struct BenchmarkBase {
 };
 
 // ---------------------------------------------------------------------------
-// BenchmarkRegistry — global singleton that collects all registered benchmarks
+// BenchmarkRegistry - global singleton that collects all registered benchmarks
 // ---------------------------------------------------------------------------
 struct BenchmarkRegistry {
     static BenchmarkRegistry &instance() {
@@ -73,7 +73,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// REGISTER_BENCHMARK macro — place at file scope in each benchmark module
+// REGISTER_BENCHMARK macro - place at file scope in each benchmark module
 //
 // Usage:
 //   struct MyBench : BenchmarkBase { ... };

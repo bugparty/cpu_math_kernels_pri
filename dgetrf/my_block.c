@@ -6,6 +6,13 @@
 #include <math.h>
 #include <stdlib.h>
 
+#if defined(__clang__) || defined(__GNUC__)
+#define DGETRF_PRAGMA_IMPL(x) _Pragma(#x)
+#define DGETRF_UNROLL_4 DGETRF_PRAGMA_IMPL(GCC unroll 4)
+#else
+#define DGETRF_UNROLL_4
+#endif
+
 void printM2(double* A, int x1,int x2,int y1,int y2,int n){
 #ifdef DEBUGPRINT
     puts("begin matrix");
@@ -52,7 +59,7 @@ int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
                 /*     for ii=x1+k+1:x2 %x1+k is the top row, divide
                         A(ii,jj)=A(ii,jj)/A(x1+k,y1+k);
                  */
-                #pragma GCC unroll 4
+                DGETRF_UNROLL_4
                 for(ii=x1+k+1;ii<=x2;++ii){
                     A[ii*n+jj] /=  A[(x1+k)*n+y1+k];
                 }
@@ -62,7 +69,7 @@ int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
             }else{
 //                                for ii=x1+k+1:x2 % subtract
 //                        A(ii,jj)=A(ii,jj)-A(ii,divColumn)*A(x1+k,jj);
-                #pragma GCC unroll 4
+                DGETRF_UNROLL_4
                 for(ii=x1+k+1;ii<=x2;++ii){
                     A[ii*n+jj] -=  A[ii*n+divColumn]*A[(x1+k)*n+jj];
                 }
@@ -187,7 +194,7 @@ static const int BLOCK_SIZE=64;
 __m256d neg_one = _mm256_set1_pd(-1.0);
 for (ii=i;ii<i+BLOCK_SIZE;ii++)
 {
-    #pragma GCC unroll 4
+    DGETRF_UNROLL_4
     for (jj=j;jj<j+BLOCK_SIZE;jj+=8)
     {
      double *pCij = &C[ii*n+jj];

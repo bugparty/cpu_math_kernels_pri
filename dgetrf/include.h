@@ -6,6 +6,12 @@
 #include <time.h>
 #include <string.h>
 #ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <winsock2.h>
 #include <windows.h>
 static inline int gettimeofday(struct timeval* tv, void* tz)
