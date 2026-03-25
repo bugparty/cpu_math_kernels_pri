@@ -33,9 +33,9 @@ static inline int gettimeofday(struct timeval* tv, void* tz)
 #include <math.h>
 
 #ifdef __cplusplus
-#define PREFETCH(addr, hint) _mm_prefetch(reinterpret_cast<const char*>(addr), hint)
+#define PREFETCH(addr, hint) _mm_prefetch(reinterpret_cast<const char*>(addr), static_cast<_mm_hint>(hint))
 #else
-#define PREFETCH(addr, hint) _mm_prefetch((const char*)(addr), hint)
+#define PREFETCH(addr, hint) _mm_prefetch((const char*)(addr), (enum _mm_hint)(hint))
 #endif
 
 #if defined(__has_include)

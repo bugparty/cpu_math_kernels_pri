@@ -11,6 +11,7 @@ void swapRow(double *A, int n, int first, int second){
         A[second*n+i] =t;
     }
 }
+#ifdef __AVX512F__
 void swapRow3(double *A, int n, int first, int second) {
     int i;
 
@@ -56,6 +57,14 @@ PREFETCH(row2, 3);
         PREFETCH(row2p+16, 3);
     }
 }
+#else
+void swapRow3(double *A, int n, int first, int second) {
+    swapRow(A, n, first, second);
+}
+void swapRow2(double *A, int n, int first, int second) {
+    swapRow(A, n, first, second);
+}
+#endif
 
 int mydgetrf(double *A,int *ipiv,int n)
 {

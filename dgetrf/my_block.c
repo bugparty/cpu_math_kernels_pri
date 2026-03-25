@@ -187,6 +187,7 @@ void kernel_reg16(double *C,int n,int i,int j,int k){
 
         }
 }
+#ifdef __AVX512F__
 void kernel_Avx512_S4(double *C,double *A,double *B,int n,int i,int j,int k)
 {
  int ii,jj,kk;
@@ -252,6 +253,7 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
     }
     }
 }
+#endif
 void kernel_naive(double *C,double *A, double*B, int n,int i,int j,int k){
     int ii,jj,kk;
     for(ii=i;ii<i+GEMM2_BLOCK_SIZE;ii++) {
@@ -317,7 +319,22 @@ void gemm2_ikj(double*A, int n, int iend, int ib){
             for (j = iend; j < n; j += GEMM2_BLOCK_SIZE)
             {
                 //gemm2_kernel_ijk(A, n, i, j, k);
+#ifdef __AVX512F__
                 kernel_Avx512_S4(A,A,A,n,i,j,k);
+#else
+                int i_max = i + GEMM2_BLOCK_SIZE > n ? n : i + GEMM2_BLOCK_SIZE;
+                int j_max = j + GEMM2_BLOCK_SIZE > n ? n : j + GEMM2_BLOCK_SIZE;
+                int k_max = k + GEMM2_BLOCK_SIZE > n ? n : k + GEMM2_BLOCK_SIZE;
+                for (int ii = i; ii < i_max; ii++) {
+                    register int iin = ii * n;
+                    for (int kk = k; kk < k_max; kk++) {
+                        register double r = A[iin + kk];
+                        for (int jj = j; jj < j_max; jj++) {
+                            A[iin + jj] -= A[kk * n + jj] * r;
+                        }
+                    }
+                }
+#endif
                 //kernel_reg16(A,n,i,j,k);
                 //kernel_reg4(A,A,A,i,j,k,n);
                 //kernel_reg4(A,A,A,i,j,k,n);
