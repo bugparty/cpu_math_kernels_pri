@@ -128,7 +128,9 @@ private:
     static int _sreg_##fn = (BenchmarkRegistry::instance().add(&_sbench_##fn), 0)
 
 REGISTER_SOLVER("my", my_f);
+#ifdef __AVX512F__
 REGISTER_SOLVER("my_block", my_block_f);
+#endif
 #if DGETRF_HAVE_EXTERNAL_BLAS_LAPACK
 REGISTER_SOLVER_SLOW("lapack", lapack_f, 4096);
 #endif

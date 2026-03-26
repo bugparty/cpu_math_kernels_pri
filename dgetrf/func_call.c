@@ -5,7 +5,9 @@
 #include "lapack.c"
 #endif
 #include "my.c"
+#ifdef __AVX512F__
 #include "my_block.c"
+#endif
 
 void func_call(char *func_name,double *A,double *B,int n)
 {
@@ -26,7 +28,12 @@ void func_call(char *func_name,double *A,double *B,int n)
     }
     if (strcmp(func_name,"my_block")==0)
     {
+#ifdef __AVX512F__
         my_block_f(A,B,n);
+#else
+        printf("Error: my_block solver unavailable (AVX-512 required)\n");
+        exit(1);
+#endif
         return;
     }
     printf("Error: Invalid function name\n");

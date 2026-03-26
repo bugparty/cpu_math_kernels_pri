@@ -71,8 +71,10 @@ std::vector<KernelEntry> build_kernels() {
         {"dgemm7_kij", dgemm7_kij},
         {"dgemm7_ikj", dgemm7_ikj},
         {"dgemmAVX", dgemmAVX},
+#ifdef __AVX512F__
         {"dgemmAVX512", dgemmAVX512},
         {"dgemmAVX512B", dgemmAVX512B},
+#endif
     };
 }
 
