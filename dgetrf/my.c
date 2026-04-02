@@ -1,7 +1,7 @@
 ﻿#ifndef __MY_C__
 #define __MY_C__
 
-#include "include.h"
+#include "dgetrf/common.h"
 #define DEBUGPRINT1
 void swapRow(double *A, int n, int first, int second){
     int i;

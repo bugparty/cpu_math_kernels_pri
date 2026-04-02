@@ -78,6 +78,7 @@ endif()
 
 # Add the executable target for the main application
 add_executable(hw2_main main.cpp)
+target_include_directories(hw2_main PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include)
 target_compile_definitions(hw2_main PRIVATE DGETRF_HAVE_EXTERNAL_BLAS_LAPACK=$<IF:$<BOOL:${HAVE_EXTERNAL_BLAS_LAPACK}>,1,0>)
 if(MATH_LIBS)
     if(NOT MSVC)
@@ -88,6 +89,7 @@ if(MATH_LIBS)
 endif()
 
 add_executable(hw2_test1 test1.c)
+target_include_directories(hw2_test1 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include)
 target_compile_definitions(hw2_test1 PRIVATE DGETRF_HAVE_EXTERNAL_BLAS_LAPACK=$<IF:$<BOOL:${HAVE_EXTERNAL_BLAS_LAPACK}>,1,0>)
 if(MATH_LIBS)
     if(NOT MSVC)
@@ -98,6 +100,7 @@ if(MATH_LIBS)
 endif()
 
 add_executable(dgetrf_bench_all bench_all.cpp)
+target_include_directories(dgetrf_bench_all PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/include)
 target_compile_definitions(dgetrf_bench_all PRIVATE DGETRF_HAVE_EXTERNAL_BLAS_LAPACK=$<IF:$<BOOL:${HAVE_EXTERNAL_BLAS_LAPACK}>,1,0>)
 if(MATH_LIBS)
     if(NOT MSVC)
@@ -106,4 +109,3 @@ if(MATH_LIBS)
         target_link_libraries(dgetrf_bench_all ${MATH_LIBS})
     endif()
 endif()
-

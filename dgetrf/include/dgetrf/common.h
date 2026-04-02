@@ -1,11 +1,11 @@
-﻿#ifndef __INCLUDE_H__
-#define __INCLUDE_H__
+﻿#ifndef DGETRF_COMMON_H_
+#define DGETRF_COMMON_H_
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include "../include/compiler_compat.h"
+#include "compiler_compat.h"
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -89,4 +89,5 @@ void cblas_dtrsv(const int layout, const int Uplo, const int TransA, const int D
 #endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
 #endif

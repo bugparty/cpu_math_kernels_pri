@@ -1,4 +1,4 @@
-#include "include.h"
+#include "dgetrf/common.h"
 #include "func_call.c"
 
 int main(int argc,char **argv)

@@ -1,7 +1,7 @@
 #ifndef __LAPACK_C__
 #define __LAPACK_C__
 
-#include "include.h"
+#include "dgetrf/common.h"
 
 void lapack_f(double *A,double *B,int n)
 {

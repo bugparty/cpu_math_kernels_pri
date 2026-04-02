@@ -1,7 +1,7 @@
 #ifndef __MY_BLOCK_C__
 #define __MY_BLOCK_C__
 #define DEBUGPRINT1
-#include "include.h"
+#include "dgetrf/common.h"
 #include <omp.h>
 #include <math.h>
 #include <stdlib.h>

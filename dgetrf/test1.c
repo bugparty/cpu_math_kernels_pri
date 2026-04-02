@@ -1,4 +1,4 @@
-#include "include.h"
+#include "dgetrf/common.h"
 #include "func_call.c"
 #include <stdlib.h>
 void initRand(double*A,double*A_backup, double*B,double*B_backup,int n){

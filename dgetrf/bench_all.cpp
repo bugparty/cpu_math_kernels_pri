@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "../include/benchmark.h"
-#include "include.h"
+#include "dgetrf/common.h"
 #include "func_call.c"
 
 class SolveBenchmark : public BenchmarkBase {
