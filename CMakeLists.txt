@@ -16,6 +16,7 @@ endif()
 option(BUILD_HW1 "Build hw1 GEMM benchmarks" ON)
 option(BUILD_HW2 "Build hw2 large linear system solvers" ON)
 option(BUILD_HW3 "Build hw3 sieve of Eratosthenes" OFF)
+option(BUILD_ML_KERNELS "Build experimental ML kernels workspace" ON)
 
 if(BUILD_HW1)
     add_subdirectory(gemm)
@@ -27,4 +28,8 @@ endif()
 
 if(BUILD_HW3)
     add_subdirectory(mpi_prime)
+endif()
+
+if(BUILD_ML_KERNELS)
+    add_subdirectory(ml_kernels)
 endif()
