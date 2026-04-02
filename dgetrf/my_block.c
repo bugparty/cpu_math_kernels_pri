@@ -146,7 +146,7 @@ void kernel_reg16(double *C,int n,int i,int j,int k){
 
                 c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
                 c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
-                PREFETCH(&C[tbb],3);
+                __builtin_prefetch(&C[tbb], 0, 3);
 
 
                 c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
@@ -157,7 +157,7 @@ void kernel_reg16(double *C,int n,int i,int j,int k){
 
                 c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
                 c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
-                PREFETCH(&C[tbbb],3);
+                __builtin_prefetch(&C[tbbb], 0, 3);
                 c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
                 c03 -= a00 * b03; c13 -= a10 * b03; c23 -= a20 * b03; c33 -= a30 * b03;
 
@@ -167,7 +167,7 @@ void kernel_reg16(double *C,int n,int i,int j,int k){
 
                 c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
                 c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
-                 PREFETCH(&C[tb4],3);
+                __builtin_prefetch(&C[tb4], 0, 3);
                 c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
                 c03 -= a00 * b03; c13 -= a10 * b03; c23 -= a20 * b03; c33 -= a30 * b03;
 
@@ -217,7 +217,7 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
         const int kj = kk*n+jj;
         const double* pCkj = &C[kj];
 
-        PREFETCH(pCkj, 3);
+        __builtin_prefetch(pCkj, 0, 3);
 
         __m256d negatedCikX4 = _mm256_mul_pd(CikX4, neg_one);
         const double * pCkj1n = pCkj+n;
@@ -226,7 +226,7 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
 
         __m128d xmm1 = _mm256_extractf128_pd(negatedCikX4, 1); // Extract upper 128 bits
           const double * pCkj3n = pCkj2n+n;
-         PREFETCH(pCkj1n, 3);
+        __builtin_prefetch(pCkj1n, 0, 3);
         __m512d Aikx8 = _mm512_broadcastsd_pd(_mm_permute_pd(xmm0, 0b00));//A a(i,k)  a(i,k) a(i,k) a(i,k)
         __m512d Aikx8t = _mm512_broadcastsd_pd(_mm_permute_pd(xmm0, 0b11));
         __m512d Aikx8tt = _mm512_broadcastsd_pd(_mm_permute_pd(xmm1, 0b00));

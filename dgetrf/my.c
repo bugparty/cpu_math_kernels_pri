@@ -42,8 +42,8 @@ void swapRow2(double *A, int n, int first, int second) {
     // Pointers to the beginning of the rows
     double* row1 = A + first * n;
     double* row2 = A + second * n;
-PREFETCH(row1, 3);
-PREFETCH(row2, 3);
+__builtin_prefetch(row1, 0, 3);
+__builtin_prefetch(row2, 0, 3);
     // Process 8 doubles (512 bits) at a time
     for (i = 0; i < n; i += 8) {
         double * row1p = &row1[i];
@@ -53,8 +53,8 @@ PREFETCH(row2, 3);
         __m512d vec2 = _mm512_load_pd(row2p);
         _mm512_store_pd(row1p, vec2);
         _mm512_store_pd(row2p, vec1);
-        PREFETCH(row1p+16, 3);
-        PREFETCH(row2p+16, 3);
+        __builtin_prefetch(row1p + 16, 0, 3);
+        __builtin_prefetch(row2p + 16, 0, 3);
     }
 }
 #else
