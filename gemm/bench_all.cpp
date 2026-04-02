@@ -21,6 +21,8 @@
 #include <mkl.h>
 #endif
 
+static bool g_use_pool = true;
+
 // B_T is declared extern in dgemm.h; we own the allocation here
 double *B_T = nullptr;
 
@@ -60,44 +62,61 @@ public:
         const int BLOCK_SIZE = 16;
         int n_padded = ((n + BLOCK_SIZE - 1) / BLOCK_SIZE + 1) * BLOCK_SIZE;
         size_t bytes = (size_t)n_padded * n_padded * sizeof(double);
-        A_      = static_cast<double *>(_mm_malloc(bytes, 64));
-        B_      = static_cast<double *>(_mm_malloc(bytes, 64));
-        C_      = static_cast<double *>(_mm_malloc(bytes, 64));
-        C_ref_  = static_cast<double *>(_mm_malloc(bytes, 64));
-        C_base_ = static_cast<double *>(_mm_malloc(bytes, 64));
-        B_T     = static_cast<double *>(_mm_malloc(bytes, 64));
+
+        size_t bytes_per_iteration = 3ULL * n * n * sizeof(double);
+        size_t target_pool_bytes = 100ULL * 1024 * 1024;
+        pool_size_ = g_use_pool ? (std::max<std::size_t>)(1, target_pool_bytes / bytes_per_iteration) : 1;
+
+        A_.resize(pool_size_);
+        B_.resize(pool_size_);
+        C_.resize(pool_size_);
+        C_base_.resize(pool_size_);
 
         // Fill A, B, C_base with random doubles; zero B_T
         std::mt19937_64 rng(12345);
         std::uniform_real_distribution<double> dist(-1.0, 1.0);
         size_t elems = (size_t)n * n;
-        for (size_t i = 0; i < elems; ++i) {
-            A_[i]      = dist(rng);
-            B_[i]      = dist(rng);
-            C_base_[i] = dist(rng);
+
+        for (size_t p = 0; p < pool_size_; ++p) {
+            A_[p]      = static_cast<double *>(_mm_malloc(bytes, 64));
+            B_[p]      = static_cast<double *>(_mm_malloc(bytes, 64));
+            C_[p]      = static_cast<double *>(_mm_malloc(bytes, 64));
+            C_base_[p] = static_cast<double *>(_mm_malloc(bytes, 64));
+            for (size_t i = 0; i < elems; ++i) {
+                A_[p][i]      = dist(rng);
+                B_[p][i]      = dist(rng);
+                C_base_[p][i] = dist(rng);
+            }
         }
+
+        C_ref_  = static_cast<double *>(_mm_malloc(bytes, 64));
+        B_T     = static_cast<double *>(_mm_malloc(bytes, 64));
+
         std::fill_n(B_T, elems, 0.0);
 
         // Precompute reference result
-        std::copy(C_base_, C_base_ + elems, C_ref_);
-        reference_dgemm(C_ref_, A_, B_, n);
+        std::copy(C_base_[0], C_base_[0] + elems, C_ref_);
+        reference_dgemm(C_ref_, A_[0], B_[0], n);
+        current_idx_ = 0;
     }
 
     // run() resets C from C_base before each call so timing is consistent
     void run() override {
         size_t elems = (size_t)n_ * n_;
-        std::copy(C_base_, C_base_ + elems, C_);
-        kernel_(C_, A_, B_, n_);
+        std::copy(C_base_[current_idx_], C_base_[current_idx_] + elems, C_[current_idx_]);
+        kernel_(C_[current_idx_], A_[current_idx_], B_[current_idx_], n_);
+        current_idx_ = (current_idx_ + 1) % pool_size_;
     }
 
     bool verify() override {
+        current_idx_ = 0;
         // Run kernel once on a fresh C and compare against precomputed C_ref_
         size_t elems = (size_t)n_ * n_;
-        std::copy(C_base_, C_base_ + elems, C_);
-        kernel_(C_, A_, B_, n_);
+        std::copy(C_base_[0], C_base_[0] + elems, C_[0]);
+        kernel_(C_[0], A_[0], B_[0], n_);
         constexpr double tol = 1e-6;
         for (size_t i = 0; i < elems; ++i) {
-            if (std::abs(C_[i] - C_ref_[i]) > tol)
+            if (std::abs(C_[0][i] - C_ref_[i]) > tol)
                 return false;
         }
         return true;
@@ -109,11 +128,17 @@ public:
     }
 
     void teardown() override {
-        _mm_free(A_);      A_      = nullptr;
-        _mm_free(B_);      B_      = nullptr;
-        _mm_free(C_);      C_      = nullptr;
+        for (size_t p = 0; p < pool_size_; ++p) {
+            _mm_free(A_[p]);
+            _mm_free(B_[p]);
+            _mm_free(C_[p]);
+            _mm_free(C_base_[p]);
+        }
+        A_.clear();
+        B_.clear();
+        C_.clear();
+        C_base_.clear();
         _mm_free(C_ref_);  C_ref_  = nullptr;
-        _mm_free(C_base_); C_base_ = nullptr;
         _mm_free(B_T);     B_T     = nullptr;
         n_ = 0;
     }
@@ -123,11 +148,13 @@ private:
     KernelFn    kernel_;
     int         max_n_limit_;
     int         n_      = 0;
-    double     *A_      = nullptr;
-    double     *B_      = nullptr;
-    double     *C_      = nullptr;
+    std::vector<double *> A_;
+    std::vector<double *> B_;
+    std::vector<double *> C_;
+    std::vector<double *> C_base_;
     double     *C_ref_  = nullptr;
-    double     *C_base_ = nullptr;
+    std::size_t pool_size_ = 1;
+    std::size_t current_idx_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -239,26 +266,29 @@ int main(int argc, char **argv) {
               << ", sizes=" << sizes_str << std::endl << std::endl;
 
     for (int n : sizes) {
-        std::cout << "=== M=N=K=" << n << " ===" << std::endl;
-        print_table_header();
+        for (bool use_pool : {true, false}) {
+            g_use_pool = use_pool;
+            std::cout << "=== M=N=K=" << n << (use_pool ? " (Pool Mode)" : " (Fixed Memory)") << " ===" << std::endl;
+            print_table_header();
 
-        for (auto *bench : BenchmarkRegistry::instance().all()) {
-            if (n > bench->max_n()) {
-                print_skip_row(bench->name());
-                continue;
+            for (auto *bench : BenchmarkRegistry::instance().all()) {
+                if (n > bench->max_n()) {
+                    print_skip_row(bench->name());
+                    continue;
+                }
+
+                bench->setup(n);
+                BenchmarkResult r = run_benchmark(bench, warmup, iters);
+                bool ok = bench->verify();
+                bench->teardown();
+
+                double gflops = (r.avg_ms > 0)
+                    ? bench->flops(n) / (r.avg_ms / 1000.0) / 1e9
+                    : 0.0;
+                print_table_row(bench->name(), r, gflops, ok);
             }
-
-            bench->setup(n);
-            BenchmarkResult r = run_benchmark(bench, warmup, iters);
-            bool ok = bench->verify();
-            bench->teardown();
-
-            double gflops = (r.avg_ms > 0)
-                ? bench->flops(n) / (r.avg_ms / 1000.0) / 1e9
-                : 0.0;
-            print_table_row(bench->name(), r, gflops, ok);
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
     }
 
     return 0;

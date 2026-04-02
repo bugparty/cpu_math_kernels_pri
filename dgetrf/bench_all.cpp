@@ -1,4 +1,4 @@
-#include <algorithm>
+﻿#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -10,6 +10,8 @@
 #include "../include/benchmark.h"
 #include "dgetrf/common.h"
 #include "func_call.c"
+
+static bool g_use_pool = true;
 
 class SolveBenchmark : public BenchmarkBase {
 public:
@@ -26,36 +28,50 @@ public:
         const size_t matrix_elems = static_cast<size_t>(n_) * static_cast<size_t>(n_);
         const size_t vector_elems = static_cast<size_t>(n_);
 
-        A_base_ = static_cast<double*>(_mm_malloc(matrix_elems * sizeof(double), 64));
-        b_base_ = static_cast<double*>(_mm_malloc(vector_elems * sizeof(double), 64));
-        A_work_ = static_cast<double*>(_mm_malloc(matrix_elems * sizeof(double), 64));
-        x_work_ = static_cast<double*>(_mm_malloc(vector_elems * sizeof(double), 64));
+        size_t bytes_per_iteration = (matrix_elems + vector_elems) * sizeof(double);
+        size_t target_pool_bytes = 100ULL * 1024 * 1024;
+        pool_size_ = g_use_pool ? (std::max<std::size_t>)(1, target_pool_bytes / bytes_per_iteration) : 1;
+
+        A_base_.resize(pool_size_);
+        b_base_.resize(pool_size_);
+        A_work_.resize(pool_size_);
+        x_work_.resize(pool_size_);
 
         std::mt19937_64 rng(1234567);
         std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-        for (size_t i = 0; i < matrix_elems; ++i)
-            A_base_[i] = dist(rng);
+        for (size_t p = 0; p < pool_size_; ++p) {
+            A_base_[p] = static_cast<double*>(_mm_malloc(matrix_elems * sizeof(double), 64));
+            b_base_[p] = static_cast<double*>(_mm_malloc(vector_elems * sizeof(double), 64));
+            A_work_[p] = static_cast<double*>(_mm_malloc(matrix_elems * sizeof(double), 64));
+            x_work_[p] = static_cast<double*>(_mm_malloc(vector_elems * sizeof(double), 64));
 
-        // Diagonal dominance keeps random matrices well-conditioned for solve checks.
-        for (int i = 0; i < n_; ++i)
-            A_base_[static_cast<size_t>(i) * n_ + i] += static_cast<double>(n_);
+            for (size_t i = 0; i < matrix_elems; ++i)
+                A_base_[p][i] = dist(rng);
 
-        for (size_t i = 0; i < vector_elems; ++i)
-            b_base_[i] = dist(rng);
+            // Diagonal dominance keeps random matrices well-conditioned for solve checks.
+            for (int i = 0; i < n_; ++i)
+                A_base_[p][static_cast<size_t>(i) * n_ + i] += static_cast<double>(n_);
+
+            for (size_t i = 0; i < vector_elems; ++i)
+                b_base_[p][i] = dist(rng);
+        }
+        current_idx_ = 0;
     }
 
     void run() override {
-        reset_working_set();
-        solver_(A_work_, x_work_, n_);
+        reset_working_set(current_idx_);
+        solver_(A_work_[current_idx_], x_work_[current_idx_], n_);
+        current_idx_ = (current_idx_ + 1) % pool_size_;
     }
 
     bool verify() override {
-        reset_working_set();
-        solver_(A_work_, x_work_, n_);
+        current_idx_ = 0;
+        reset_working_set(0);
+        solver_(A_work_[0], x_work_[0], n_);
 
-        const double b_norm = l2_norm(b_base_, n_);
-        const double residual_norm = compute_residual_norm();
+        const double b_norm = l2_norm(b_base_[0], n_);
+        const double residual_norm = compute_residual_norm(0);
         const double rel_residual = residual_norm / (std::max)(1e-12, b_norm);
         return std::isfinite(rel_residual) && rel_residual < 1e-6;
     }
@@ -70,23 +86,25 @@ public:
     }
 
     void teardown() override {
-        _mm_free(A_base_);
-        _mm_free(b_base_);
-        _mm_free(A_work_);
-        _mm_free(x_work_);
-        A_base_ = nullptr;
-        b_base_ = nullptr;
-        A_work_ = nullptr;
-        x_work_ = nullptr;
+        for (size_t p = 0; p < pool_size_; ++p) {
+            _mm_free(A_base_[p]);
+            _mm_free(b_base_[p]);
+            _mm_free(A_work_[p]);
+            _mm_free(x_work_[p]);
+        }
+        A_base_.clear();
+        b_base_.clear();
+        A_work_.clear();
+        x_work_.clear();
         n_ = 0;
     }
 
 private:
-    void reset_working_set() {
+    void reset_working_set(size_t p) {
         const size_t matrix_elems = static_cast<size_t>(n_) * static_cast<size_t>(n_);
         const size_t vector_elems = static_cast<size_t>(n_);
-        std::copy(A_base_, A_base_ + matrix_elems, A_work_);
-        std::copy(b_base_, b_base_ + vector_elems, x_work_);
+        std::copy(A_base_[p], A_base_[p] + matrix_elems, A_work_[p]);
+        std::copy(b_base_[p], b_base_[p] + vector_elems, x_work_[p]);
     }
 
     static double l2_norm(const double* x, int n) {
@@ -96,14 +114,14 @@ private:
         return std::sqrt(sum);
     }
 
-    double compute_residual_norm() const {
+    double compute_residual_norm(size_t p) const {
         double sum = 0.0;
         for (int i = 0; i < n_; ++i) {
             double ax = 0.0;
             const size_t row = static_cast<size_t>(i) * n_;
             for (int j = 0; j < n_; ++j)
-                ax += A_base_[row + j] * x_work_[j];
-            const double r = ax - b_base_[i];
+                ax += A_base_[p][row + j] * x_work_[p][j];
+            const double r = ax - b_base_[p][i];
             sum += r * r;
         }
         return std::sqrt(sum);
@@ -113,10 +131,12 @@ private:
     SolverFn solver_;
     int max_n_limit_;
     int n_ = 0;
-    double* A_base_ = nullptr;
-    double* b_base_ = nullptr;
-    double* A_work_ = nullptr;
-    double* x_work_ = nullptr;
+    std::vector<double*> A_base_;
+    std::vector<double*> b_base_;
+    std::vector<double*> A_work_;
+    std::vector<double*> x_work_;
+    std::size_t pool_size_ = 1;
+    std::size_t current_idx_ = 0;
 };
 
 #define REGISTER_SOLVER(namestr, fn)                                           \
@@ -177,26 +197,29 @@ int main(int argc, char** argv) {
               << ", sizes=" << sizes_str << std::endl << std::endl;
 
     for (int n : sizes) {
-        std::cout << "=== N=" << n << " ===" << std::endl;
-        print_table_header();
+        for (bool use_pool : {true, false}) {
+            g_use_pool = use_pool;
+            std::cout << "=== N=" << n << (use_pool ? " (Pool Mode)" : " (Fixed Memory)") << " ===" << std::endl;
+            print_table_header();
 
-        for (auto* bench : BenchmarkRegistry::instance().all()) {
-            if (n > bench->max_n()) {
-                print_skip_row(bench->name());
-                continue;
+            for (auto* bench : BenchmarkRegistry::instance().all()) {
+                if (n > bench->max_n()) {
+                    print_skip_row(bench->name());
+                    continue;
+                }
+
+                bench->setup(n);
+                const BenchmarkResult r = run_benchmark(bench, warmup, iters);
+                const bool ok = bench->verify();
+                bench->teardown();
+
+                const double gflops = (r.avg_ms > 0)
+                    ? bench->flops(n) / (r.avg_ms / 1000.0) / 1e9
+                    : 0.0;
+                print_table_row(bench->name(), r, gflops, ok);
             }
-
-            bench->setup(n);
-            const BenchmarkResult r = run_benchmark(bench, warmup, iters);
-            const bool ok = bench->verify();
-            bench->teardown();
-
-            const double gflops = (r.avg_ms > 0)
-                ? bench->flops(n) / (r.avg_ms / 1000.0) / 1e9
-                : 0.0;
-            print_table_row(bench->name(), r, gflops, ok);
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
     }
 
     return 0;

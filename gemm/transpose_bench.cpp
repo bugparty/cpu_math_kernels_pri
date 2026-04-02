@@ -25,6 +25,8 @@
 #include <mkl.h>
 #endif
 
+static bool g_use_pool = true;
+
 // ---------------------------------------------------------------------------
 // TransposeBenchmark — wraps a transpose kernel function
 // ---------------------------------------------------------------------------
@@ -43,37 +45,51 @@ public:
         const int BLOCK_SIZE = 64;
         int n_padded = ((n + BLOCK_SIZE - 1) / BLOCK_SIZE + 1) * BLOCK_SIZE;
         size_t bytes = (size_t)n_padded * n_padded * sizeof(double);
-        
-        A_       = static_cast<double *>(_mm_malloc(bytes, 64));
-        A_T_     = static_cast<double *>(_mm_malloc(bytes, 64));
-        A_T_ref_ = static_cast<double *>(_mm_malloc(bytes, 64));
+
+        size_t bytes_per_iteration = 2ULL * n * n * sizeof(double);
+        size_t target_pool_bytes = 100ULL * 1024 * 1024;
+        pool_size_ = g_use_pool ? (std::max<std::size_t>)(1, target_pool_bytes / bytes_per_iteration) : 1;
+
+        A_.resize(pool_size_);
+        A_T_.resize(pool_size_);
 
         // Fill A with random doubles
         std::mt19937_64 rng(12345);
         std::uniform_real_distribution<double> dist(-1.0, 1.0);
         size_t elems = (size_t)n * n;
-        for (size_t i = 0; i < elems; ++i) {
-            A_[i] = dist(rng);
+
+        for (size_t p = 0; p < pool_size_; ++p) {
+            A_[p]   = static_cast<double *>(_mm_malloc(bytes, 64));
+            A_T_[p] = static_cast<double *>(_mm_malloc(bytes, 64));
+            for (size_t i = 0; i < elems; ++i) {
+                A_[p][i] = dist(rng);
+            }
         }
+
+        A_T_ref_ = static_cast<double *>(_mm_malloc(bytes, 64));
 
         // Precompute reference transpose (using naive method)
         for (size_t i = 0; i < (size_t)n; ++i) {
             for (size_t j = 0; j < (size_t)n; ++j) {
-                A_T_ref_[j*n + i] = A_[i*n + j];
+                A_T_ref_[j*n + i] = A_[0][i*n + j];
             }
         }
+        current_idx_ = 0;
     }
 
     void run() override {
-        kernel_(A_, A_T_, n_);
+        kernel_(A_[current_idx_], A_T_[current_idx_], n_);
+        current_idx_ = (current_idx_ + 1) % pool_size_;
     }
 
     bool verify() override {
+        current_idx_ = 0;
         // Compare against reference transpose
         size_t elems = (size_t)n_ * n_;
+        kernel_(A_[0], A_T_[0], n_);
         constexpr double tol = 1e-10;
         for (size_t i = 0; i < elems; ++i) {
-            if (std::abs(A_T_[i] - A_T_ref_[i]) > tol)
+            if (std::abs(A_T_[0][i] - A_T_ref_[i]) > tol)
                 return false;
         }
         return true;
@@ -90,8 +106,12 @@ public:
     }
 
     void teardown() override {
-        _mm_free(A_);        A_        = nullptr;
-        _mm_free(A_T_);      A_T_      = nullptr;
+        for (size_t p = 0; p < pool_size_; ++p) {
+            _mm_free(A_[p]);
+            _mm_free(A_T_[p]);
+        }
+        A_.clear();
+        A_T_.clear();
         _mm_free(A_T_ref_);  A_T_ref_  = nullptr;
         n_ = 0;
     }
@@ -101,9 +121,11 @@ private:
     KernelFn    kernel_;
     int         max_n_limit_;
     int         n_        = 0;
-    double     *A_        = nullptr;
-    double     *A_T_      = nullptr;
+    std::vector<double *> A_;
+    std::vector<double *> A_T_;
     double     *A_T_ref_  = nullptr;
+    std::size_t pool_size_ = 1;
+    std::size_t current_idx_ = 0;
 };
 
 // ---------------------------------------------------------------------------
@@ -317,38 +339,41 @@ int main(int argc, char **argv) {
               << ", sizes=" << sizes_str << std::endl << std::endl;
 
     for (int n : sizes) {
-        std::cout << "=== N=" << n << " ===" << std::endl;
-        print_table_header();
+        for (bool use_pool : {true, false}) {
+            g_use_pool = use_pool;
+            std::cout << "=== N=" << n << (use_pool ? " (Pool Mode)" : " (Fixed Memory)") << " ===" << std::endl;
+            print_table_header();
 
-        for (auto *bench : BenchmarkRegistry::instance().all()) {
-            if (n > bench->max_n()) {
-                print_skip_row(bench->name());
-                continue;
+            for (auto *bench : BenchmarkRegistry::instance().all()) {
+                if (n > bench->max_n()) {
+                    print_skip_row(bench->name());
+                    continue;
+                }
+
+                bench->setup(n);
+                BenchmarkResult r = run_benchmark(bench, warmup, iters);
+                bool ok = bench->verify();
+                bench->teardown();
+
+                // For transpose: report GB/s instead of GFLOP/s
+                double gbs = (r.avg_ms > 0)
+                    ? bench->bytes_accessed(n) / (r.avg_ms / 1000.0) / 1e9
+                    : 0.0;
+
+                // Reuse print_table_row but label the GFLOP/s column as GB/s
+                std::cout << std::left << std::setw(20) << bench->name()
+                          << std::right << std::fixed
+                          << std::setprecision(3)
+                          << std::setw(12) << r.avg_ms
+                          << std::setw(12) << r.min_ms
+                          << std::setw(12) << r.max_ms
+                          << std::setprecision(2)
+                          << std::setw(14) << gbs << " GB/s"
+                          << std::setw(5) << (ok ? "PASS" : "FAIL")
+                          << std::endl;
             }
-
-            bench->setup(n);
-            BenchmarkResult r = run_benchmark(bench, warmup, iters);
-            bool ok = bench->verify();
-            bench->teardown();
-
-            // For transpose: report GB/s instead of GFLOP/s
-            double gbs = (r.avg_ms > 0)
-                ? bench->bytes_accessed(n) / (r.avg_ms / 1000.0) / 1e9
-                : 0.0;
-            
-            // Reuse print_table_row but label the GFLOP/s column as GB/s
-            std::cout << std::left << std::setw(20) << bench->name()
-                      << std::right << std::fixed
-                      << std::setprecision(3)
-                      << std::setw(12) << r.avg_ms
-                      << std::setw(12) << r.min_ms
-                      << std::setw(12) << r.max_ms
-                      << std::setprecision(2)
-                      << std::setw(14) << gbs << " GB/s"
-                      << std::setw(5) << (ok ? "PASS" : "FAIL")
-                      << std::endl;
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
     }
 
     return 0;

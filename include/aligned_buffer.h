@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <algorithm>
 #include <cstdlib>
@@ -13,6 +13,22 @@ public:
     AlignedBuffer() = default;
     AlignedBuffer(const AlignedBuffer &) = delete;
     AlignedBuffer &operator=(const AlignedBuffer &) = delete;
+
+    AlignedBuffer(AlignedBuffer &&other) noexcept : data_(other.data_), size_(other.size_) {
+        other.data_ = nullptr;
+        other.size_ = 0;
+    }
+
+    AlignedBuffer &operator=(AlignedBuffer &&other) noexcept {
+        if (this != &other) {
+            reset();
+            data_ = other.data_;
+            size_ = other.size_;
+            other.data_ = nullptr;
+            other.size_ = 0;
+        }
+        return *this;
+    }
 
     void resize(std::size_t n) {
         if (n == size_) {

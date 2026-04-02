@@ -11,3 +11,4 @@ gemm/gemm_bench.dir/
 gemm/Debug
 gemm/Release
 _cmake_check/
+/build-vs
