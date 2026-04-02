@@ -96,11 +96,28 @@ inline constexpr char kReLUV2Name[] = "relu_v2";
 inline constexpr char kReLUV3Name[] = "relu_v3";
 inline constexpr char kReLUV2_1Name[] = "relu_v2_1";
 inline constexpr char kReLU4BlockStreamName[] = "relu_4block_stream";
+inline constexpr char kReLU4BlockStreamNofenceName[] = "relu_4block_stream_nofence";
+inline constexpr char kReLUV2_2Name[] = "relu_v2_2";
+inline constexpr char kReLUV2_3Name[] = "relu_v2_3";
+inline constexpr char kReLUV2_4Name[] = "relu_v2_4";
+inline constexpr char kReLUV2_5Name[] = "relu_v2_5";
+inline constexpr char kReLUV2_6Name[] = "relu_v2_6";
+inline constexpr char kReLUV2_7Name[] = "relu_v2_7";
+inline constexpr char kReLUV2_8Name[] = "relu_v2_8";
+
 using ReLUBenchmark = ReLUBenchmarkBase<kReLUNaiveName, ml_kernels::relu_naive>;
 using ReLUV2Benchmark = ReLUBenchmarkBase<kReLUV2Name, ml_kernels::relu_v2>;
 using ReLUV3Benchmark = ReLUBenchmarkBase<kReLUV3Name, ml_kernels::relu_v3>;
 using ReLUV2_1Benchmark = ReLUBenchmarkBase<kReLUV2_1Name, ml_kernels::relu_v2_1>;
 using ReLU4BlockStreamBenchmark = ReLUBenchmarkBase<kReLU4BlockStreamName, ml_kernels::relu_4block_stream>;
+using ReLU4BlockStreamNofenceBenchmark = ReLUBenchmarkBase<kReLU4BlockStreamNofenceName, ml_kernels::relu_4block_stream_nofence>;
+using ReLUV2_2Benchmark = ReLUBenchmarkBase<kReLUV2_2Name, ml_kernels::relu_v2_2>;
+using ReLUV2_3Benchmark = ReLUBenchmarkBase<kReLUV2_3Name, ml_kernels::relu_v2_3>;
+using ReLUV2_4Benchmark = ReLUBenchmarkBase<kReLUV2_4Name, ml_kernels::relu_v2_4>;
+using ReLUV2_5Benchmark = ReLUBenchmarkBase<kReLUV2_5Name, ml_kernels::relu_v2_5>;
+using ReLUV2_6Benchmark = ReLUBenchmarkBase<kReLUV2_6Name, ml_kernels::relu_v2_6>;
+using ReLUV2_7Benchmark = ReLUBenchmarkBase<kReLUV2_7Name, ml_kernels::relu_v2_7>;
+using ReLUV2_8Benchmark = ReLUBenchmarkBase<kReLUV2_8Name, ml_kernels::relu_v2_8>;
 
 class MaxBenchmark : public BenchmarkBase {
 public:
@@ -212,6 +229,14 @@ REGISTER_BENCHMARK(ReLUV2Benchmark);
 REGISTER_BENCHMARK(ReLUV3Benchmark);
 REGISTER_BENCHMARK(ReLUV2_1Benchmark);
 REGISTER_BENCHMARK(ReLU4BlockStreamBenchmark);
+REGISTER_BENCHMARK(ReLU4BlockStreamNofenceBenchmark);
+REGISTER_BENCHMARK(ReLUV2_2Benchmark);
+REGISTER_BENCHMARK(ReLUV2_3Benchmark);
+REGISTER_BENCHMARK(ReLUV2_4Benchmark);
+REGISTER_BENCHMARK(ReLUV2_5Benchmark);
+REGISTER_BENCHMARK(ReLUV2_6Benchmark);
+REGISTER_BENCHMARK(ReLUV2_7Benchmark);
+REGISTER_BENCHMARK(ReLUV2_8Benchmark);
     // REGISTER_BENCHMARK(MaxBenchmark);
     // REGISTER_BENCHMARK(SoftmaxBenchmark);
 std::vector<int> parse_sizes(const std::string &s) {

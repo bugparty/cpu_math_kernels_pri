@@ -100,6 +100,223 @@ inline void relu_v2_1(const float *input, float *output, std::size_t n) {
     }
 }
 
+inline void relu_v2_2(const float *input, float *output, std::size_t n) {
+    std::size_t i = 0;
+    constexpr std::size_t kStride = 32;
+    const std::size_t groups = n - n % kStride;
+    auto const  zeros = _mm256_set1_ps(0.0f);
+    for (; i < groups; i += kStride) {
+        _mm_prefetch(input+i+16, _MM_HINT_T0);
+        _mm_prefetch(input+i+24, _MM_HINT_T0);
+
+        auto i0 = _mm256_loadu_ps(input+i);
+        auto i1 = _mm256_loadu_ps(input+i+8);
+        auto i2 = _mm256_loadu_ps(input+i+16);
+        auto i3 = _mm256_loadu_ps(input+i+24);
+
+        i0 = _mm256_max_ps(i0, _mm256_set1_ps(0.0f));
+        i1 = _mm256_max_ps(i1, _mm256_set1_ps(0.0f));
+        i2 = _mm256_max_ps(i2, _mm256_set1_ps(0.0f));
+        i3 = _mm256_max_ps(i3, _mm256_set1_ps(0.0f));
+
+        _mm256_storeu_ps(output+i, i0);
+        _mm256_storeu_ps(output+i+8,i1);
+        _mm256_storeu_ps(output+i+16,i2);
+        _mm256_storeu_ps(output+i+24,i3);
+    }
+
+    for (; i < n; ++i) {
+        output[i] = input[i] > 0.0f ? input[i] : 0.0f;
+    }
+}
+
+inline void relu_v2_3(const float *input, float *output, std::size_t n) {
+    std::size_t i = 0;
+    constexpr std::size_t kStride = 32;
+    const std::size_t groups = n - n % kStride;
+    auto const  zeros = _mm256_set1_ps(0.0f);
+    for (; i < groups; i += kStride) {
+        _mm_prefetch(input, _MM_HINT_T0);
+        _mm_prefetch(input+i+16, _MM_HINT_T0);
+        _mm_prefetch(input+i+24, _MM_HINT_T0);
+
+        auto i0 = _mm256_loadu_ps(input+i);
+        auto i1 = _mm256_loadu_ps(input+i+8);
+        auto i2 = _mm256_loadu_ps(input+i+16);
+        auto i3 = _mm256_loadu_ps(input+i+24);
+
+        i0 = _mm256_max_ps(i0, _mm256_set1_ps(0.0f));
+        i1 = _mm256_max_ps(i1, _mm256_set1_ps(0.0f));
+        i2 = _mm256_max_ps(i2, _mm256_set1_ps(0.0f));
+        i3 = _mm256_max_ps(i3, _mm256_set1_ps(0.0f));
+
+        _mm256_storeu_ps(output+i, i0);
+        _mm256_storeu_ps(output+i+8,i1);
+        _mm256_storeu_ps(output+i+16,i2);
+        _mm256_storeu_ps(output+i+24,i3);
+    }
+
+    for (; i < n; ++i) {
+        output[i] = input[i] > 0.0f ? input[i] : 0.0f;
+    }
+}
+
+inline void relu_v2_4(const float *input, float *output, std::size_t n) {
+    std::size_t i = 0;
+    constexpr std::size_t kStride = 64;
+    const std::size_t groups = n - n % kStride;
+    auto const  zeros = _mm256_set1_ps(0.0f);
+    for (; i < groups; i += kStride) {
+
+        auto i0 = _mm256_loadu_ps(input+i);
+        auto i1 = _mm256_loadu_ps(input+i+8);
+        auto i2 = _mm256_loadu_ps(input+i+16);
+        auto i3 = _mm256_loadu_ps(input+i+24);
+        auto i4 = _mm256_loadu_ps(input+i+32);
+        auto i5 = _mm256_loadu_ps(input+i+40);
+        auto i6 = _mm256_loadu_ps(input+i+48);
+        auto i7 = _mm256_loadu_ps(input+i+56);
+
+        i0 = _mm256_max_ps(i0, _mm256_set1_ps(0.0f));
+        i1 = _mm256_max_ps(i1, _mm256_set1_ps(0.0f));
+        i2 = _mm256_max_ps(i2, _mm256_set1_ps(0.0f));
+        i3 = _mm256_max_ps(i3, _mm256_set1_ps(0.0f));
+        i4 = _mm256_max_ps(i4, _mm256_set1_ps(0.0f));
+        i5 = _mm256_max_ps(i5, _mm256_set1_ps(0.0f));
+        i6 = _mm256_max_ps(i6, _mm256_set1_ps(0.0f));
+        i7 = _mm256_max_ps(i7, _mm256_set1_ps(0.0f));
+
+        _mm256_storeu_ps(output+i, i0);
+        _mm256_storeu_ps(output+i+8,i1);
+        _mm256_storeu_ps(output+i+16,i2);
+        _mm256_storeu_ps(output+i+24,i3);
+        _mm256_storeu_ps(output+i+32,i4);
+        _mm256_storeu_ps(output+i+40,i5);
+        _mm256_storeu_ps(output+i+48,i6);
+        _mm256_storeu_ps(output+i+56,i7);
+    }
+
+    for (; i < n; ++i) {
+        output[i] = input[i] > 0.0f ? input[i] : 0.0f;
+    }
+}
+
+inline void relu_v2_5(const float *input, float *output, std::size_t n) {
+    std::size_t i = 0;
+    constexpr std::size_t kStride = 32;
+    const std::size_t groups = n - n % kStride;
+    auto const  zeros = _mm256_set1_ps(0.0f);
+    for (; i < groups; i += kStride) {
+        _mm_prefetch(input, _MM_HINT_T0);
+        _mm_prefetch(input+i+16, _MM_HINT_T0);
+
+        auto i0 = _mm256_loadu_ps(input+i);
+        auto i1 = _mm256_loadu_ps(input+i+8);
+        auto i2 = _mm256_loadu_ps(input+i+16);
+        auto i3 = _mm256_loadu_ps(input+i+24);
+
+        i0 = _mm256_max_ps(i0, _mm256_set1_ps(0.0f));
+        i1 = _mm256_max_ps(i1, _mm256_set1_ps(0.0f));
+        i2 = _mm256_max_ps(i2, _mm256_set1_ps(0.0f));
+        i3 = _mm256_max_ps(i3, _mm256_set1_ps(0.0f));
+
+        _mm256_storeu_ps(output+i, i0);
+        _mm256_storeu_ps(output+i+8,i1);
+        _mm256_storeu_ps(output+i+16,i2);
+        _mm256_storeu_ps(output+i+24,i3);
+    }
+
+    for (; i < n; ++i) {
+        output[i] = input[i] > 0.0f ? input[i] : 0.0f;
+    }
+}
+inline void relu_v2_6(const float *input, float *output, std::size_t n) {
+    std::size_t i = 0;
+    constexpr std::size_t kStride = 32;
+    const std::size_t groups = n - n % kStride;
+    auto const  zeros = _mm256_set1_ps(0.0f);
+    for (; i < groups; i += kStride) {
+        _mm_prefetch(input, _MM_HINT_T1);
+        _mm_prefetch(input+i+16, _MM_HINT_T1);
+
+        auto i0 = _mm256_loadu_ps(input+i);
+        auto i1 = _mm256_loadu_ps(input+i+8);
+        auto i2 = _mm256_loadu_ps(input+i+16);
+        auto i3 = _mm256_loadu_ps(input+i+24);
+
+        i0 = _mm256_max_ps(i0, _mm256_set1_ps(0.0f));
+        i1 = _mm256_max_ps(i1, _mm256_set1_ps(0.0f));
+        i2 = _mm256_max_ps(i2, _mm256_set1_ps(0.0f));
+        i3 = _mm256_max_ps(i3, _mm256_set1_ps(0.0f));
+
+        _mm256_storeu_ps(output+i, i0);
+        _mm256_storeu_ps(output+i+8,i1);
+        _mm256_storeu_ps(output+i+16,i2);
+        _mm256_storeu_ps(output+i+24,i3);
+    }
+
+    for (; i < n; ++i) {
+        output[i] = input[i] > 0.0f ? input[i] : 0.0f;
+    }
+}
+inline void relu_v2_7(const float *input, float *output, std::size_t n) {
+    std::size_t i = 0;
+    constexpr std::size_t kStride = 32;
+    const std::size_t groups = n - n % kStride;
+    auto const  zeros = _mm256_set1_ps(0.0f);
+    for (; i < groups; i += kStride) {
+        _mm_prefetch(input, _MM_HINT_T2);
+        _mm_prefetch(input+i+16, _MM_HINT_T2);
+
+        auto i0 = _mm256_loadu_ps(input+i);
+        auto i1 = _mm256_loadu_ps(input+i+8);
+        auto i2 = _mm256_loadu_ps(input+i+16);
+        auto i3 = _mm256_loadu_ps(input+i+24);
+
+        i0 = _mm256_max_ps(i0, _mm256_set1_ps(0.0f));
+        i1 = _mm256_max_ps(i1, _mm256_set1_ps(0.0f));
+        i2 = _mm256_max_ps(i2, _mm256_set1_ps(0.0f));
+        i3 = _mm256_max_ps(i3, _mm256_set1_ps(0.0f));
+
+        _mm256_storeu_ps(output+i, i0);
+        _mm256_storeu_ps(output+i+8,i1);
+        _mm256_storeu_ps(output+i+16,i2);
+        _mm256_storeu_ps(output+i+24,i3);
+    }
+
+    for (; i < n; ++i) {
+        output[i] = input[i] > 0.0f ? input[i] : 0.0f;
+    }
+}
+inline void relu_v2_8(const float *input, float *output, std::size_t n) {
+    std::size_t i = 0;
+    constexpr std::size_t kStride = 32;
+    const std::size_t groups = n - n % kStride;
+    auto const  zeros = _mm256_set1_ps(0.0f);
+    for (; i < groups; i += kStride) {
+        _mm_prefetch(input, _MM_HINT_NTA);
+        _mm_prefetch(input+i+16, _MM_HINT_NTA);
+
+        auto i0 = _mm256_loadu_ps(input+i);
+        auto i1 = _mm256_loadu_ps(input+i+8);
+        auto i2 = _mm256_loadu_ps(input+i+16);
+        auto i3 = _mm256_loadu_ps(input+i+24);
+
+        i0 = _mm256_max_ps(i0, _mm256_set1_ps(0.0f));
+        i1 = _mm256_max_ps(i1, _mm256_set1_ps(0.0f));
+        i2 = _mm256_max_ps(i2, _mm256_set1_ps(0.0f));
+        i3 = _mm256_max_ps(i3, _mm256_set1_ps(0.0f));
+
+        _mm256_storeu_ps(output+i, i0);
+        _mm256_storeu_ps(output+i+8,i1);
+        _mm256_storeu_ps(output+i+16,i2);
+        _mm256_storeu_ps(output+i+24,i3);
+    }
+
+    for (; i < n; ++i) {
+        output[i] = input[i] > 0.0f ? input[i] : 0.0f;
+    }
+}
 inline void relu_4block_stream(const float *input, float *output, std::size_t n) {
     std::size_t i = 0;
     constexpr std::size_t kStride = 32;
@@ -123,6 +340,33 @@ inline void relu_4block_stream(const float *input, float *output, std::size_t n)
         _mm256_stream_ps(output+i+24,i3);
     }
     _mm_sfence();
+    for (; i < n; ++i) {
+        output[i] = input[i] > 0.0f ? input[i] : 0.0f;
+    }
+
+}
+inline void relu_4block_stream_nofence(const float *input, float *output, std::size_t n) {
+    std::size_t i = 0;
+    constexpr std::size_t kStride = 32;
+    const std::size_t groups = n - n % kStride;
+    auto const  zeros = _mm256_set1_ps(0.0f);
+    for (; i < groups; i += kStride) {
+
+        auto i0 = _mm256_loadu_ps(input+i);
+        auto i1 = _mm256_loadu_ps(input+i+8);
+        auto i2 = _mm256_loadu_ps(input+i+16);
+        auto i3 = _mm256_loadu_ps(input+i+24);
+
+        i0 = _mm256_max_ps(i0, _mm256_set1_ps(0.0f));
+        i1 = _mm256_max_ps(i1, _mm256_set1_ps(0.0f));
+        i2 = _mm256_max_ps(i2, _mm256_set1_ps(0.0f));
+        i3 = _mm256_max_ps(i3, _mm256_set1_ps(0.0f));
+
+        _mm256_stream_ps(output+i, i0);
+        _mm256_stream_ps(output+i+8,i1);
+        _mm256_stream_ps(output+i+16,i2);
+        _mm256_stream_ps(output+i+24,i3);
+    }
     for (; i < n; ++i) {
         output[i] = input[i] > 0.0f ? input[i] : 0.0f;
     }
