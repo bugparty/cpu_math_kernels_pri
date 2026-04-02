@@ -40,7 +40,11 @@ Follow the existing style in each module:
 - C and C++ are the primary languages; preserve the current procedural style.
 - Use 4-space indentation and keep braces on their own lines for function bodies.
 - Match established names such as `dgemm7_ikj`, `hw2_main`, and `sieve1.c`: lowercase, underscores, and numeric suffixes where they describe kernel variants.
+- In C++ output code, do not use `"\n"`; use `std::endl` instead.
 - Prefer small, local changes; do not reformat whole files unless necessary.
+## Benchmarking
+
+- You must use include/benchmark.h as a benchmark framework
 
 ## Testing Guidelines
 There is no centralized unit-test suite. Verification is executable- and benchmark-driven:

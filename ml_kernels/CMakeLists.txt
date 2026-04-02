@@ -14,9 +14,10 @@ target_include_directories(ml_kernel_smoke PRIVATE include)
 add_executable(ml_kernel_bench
     src/naive_ops.cpp
     src/kernel_bench.cpp
+        include/ml_kernels/relu.h
 )
 
-target_include_directories(ml_kernel_bench PRIVATE include)
+target_include_directories(ml_kernel_bench PRIVATE include ${CMAKE_SOURCE_DIR}/include)
 
 if(MSVC)
     target_compile_options(ml_kernel_smoke PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)

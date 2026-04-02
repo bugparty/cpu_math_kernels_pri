@@ -15,31 +15,31 @@ int main() {
     ml_kernels::softmax_naive(input.data(), softmax_output.data(), input.size());
     const float max_value = ml_kernels::max_naive(input.data(), input.size());
 
-    std::cout << "ml_kernels workspace ready\n";
+    std::cout << "ml_kernels workspace ready" << std::endl;
     std::cout << "kernel=" << spec.name
               << " tile=(" << spec.tile_m
               << "," << spec.tile_n
-              << "," << spec.tile_k << ")\n";
+              << "," << spec.tile_k << ")" << std::endl;
 
     std::cout << "input: ";
     for (float value : input) {
         std::cout << value << " ";
     }
-    std::cout << "\n";
+    std::cout << std::endl;
 
     std::cout << "relu_naive: ";
     for (float value : relu_output) {
         std::cout << value << " ";
     }
-    std::cout << "\n";
+    std::cout << std::endl;
 
-    std::cout << "max_naive: " << max_value << "\n";
+    std::cout << "max_naive: " << max_value << std::endl;
 
     std::cout << "softmax_naive: ";
     std::cout << std::fixed << std::setprecision(6);
     for (float value : softmax_output) {
         std::cout << value << " ";
     }
-    std::cout << "\n";
+    std::cout << std::endl;
     return 0;
 }

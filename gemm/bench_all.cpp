@@ -224,22 +224,22 @@ int main(int argc, char **argv) {
             sizes_str = argv[++i];
         else {
             std::cerr << "Usage: " << argv[0]
-                      << " [--iters N] [--warmup N] [--sizes 100,500,1000,...]\n";
+                      << " [--iters N] [--warmup N] [--sizes 100,500,1000,...]" << std::endl;
             return 1;
         }
     }
 
     std::vector<int> sizes = parse_sizes(sizes_str);
     if (sizes.empty()) {
-        std::cerr << "No valid sizes specified.\n";
+        std::cerr << "No valid sizes specified." << std::endl;
         return 1;
     }
 
     std::cout << "iters=" << iters << ", warmup=" << warmup
-              << ", sizes=" << sizes_str << "\n\n";
+              << ", sizes=" << sizes_str << std::endl << std::endl;
 
     for (int n : sizes) {
-        std::cout << "=== M=N=K=" << n << " ===\n";
+        std::cout << "=== M=N=K=" << n << " ===" << std::endl;
         print_table_header();
 
         for (auto *bench : BenchmarkRegistry::instance().all()) {
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
                 : 0.0;
             print_table_row(bench->name(), r, gflops, ok);
         }
-        std::cout << "\n";
+        std::cout << std::endl;
     }
 
     return 0;

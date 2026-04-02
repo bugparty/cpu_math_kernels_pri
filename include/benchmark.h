@@ -119,8 +119,8 @@ inline void print_table_header() {
               << std::setw(12) << "max_ms"
               << std::setw(14) << "GFLOP/s"
               << std::setw(10) << "verify"
-              << "\n"
-              << std::string(80, '-') << "\n";
+              << std::endl
+              << std::string(80, '-') << std::endl;
 }
 
 inline void print_table_row(const char *name, const BenchmarkResult &r,
@@ -134,7 +134,7 @@ inline void print_table_row(const char *name, const BenchmarkResult &r,
               << std::setprecision(2)
               << std::setw(14) << gflops
               << std::setw(10) << (ok ? "PASS" : "FAIL")
-              << "\n";
+              << std::endl;
 }
 
 inline void print_skip_row(const char *name) {
@@ -145,5 +145,5 @@ inline void print_skip_row(const char *name) {
               << std::setw(12) << "-"
               << std::setw(14) << "-"
               << std::setw(10) << "SKIP"
-              << "\n";
+              << std::endl;
 }

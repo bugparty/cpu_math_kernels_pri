@@ -79,9 +79,9 @@ std::vector<KernelEntry> build_kernels() {
 }
 
 void print_kernel_menu(const std::vector<KernelEntry> &kernels) {
-    std::cout << "Please select a kernel by index:\n";
+    std::cout << "Please select a kernel by index:" << std::endl;
     for (std::size_t i = 0; i < kernels.size(); ++i) {
-        std::cout << "  " << i << ": " << kernels[i].name << '\n';
+        std::cout << "  " << i << ": " << kernels[i].name << std::endl;
     }
 }
 
@@ -104,21 +104,21 @@ int main(int argc, char **argv) {
     }
     
     if (argc != 2) {
-        std::cout << "Usage: ./bench <kernel_index>\n";
-        std::cout << "       ./bench --count   # Print max kernel index\n";
+        std::cout << "Usage: ./bench <kernel_index>" << std::endl;
+        std::cout << "       ./bench --count   # Print max kernel index" << std::endl;
         print_kernel_menu(kernels);
         return 1;
     }
 
     const int kernel_idx = std::atoi(argv[1]);
     if (kernel_idx < 0 || kernel_idx >= static_cast<int>(kernels.size())) {
-        std::cerr << "Please enter a valid kernel number (0-" << kernels.size() - 1 << ").\n";
+        std::cerr << "Please enter a valid kernel number (0-" << kernels.size() - 1 << ")." << std::endl;
         print_kernel_menu(kernels);
         return 2;
     }
 
     const KernelEntry &kernel = kernels[kernel_idx];
-    std::cout << "Selected kernel [" << kernel_idx << "] " << kernel.name << "\n";
+    std::cout << "Selected kernel [" << kernel_idx << "] " << kernel.name << std::endl;
 
     const std::size_t max_elems = static_cast<std::size_t>(max_size) * static_cast<std::size_t>(max_size);
     const std::size_t bytes = max_elems * sizeof(double);
@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
     B_T = static_cast<double *>(_mm_malloc(bytes, 64));
 
     if (!A || !B || !C || !C_ref || !C_base || !B_T) {
-        std::cerr << "Failed to allocate buffers for size " << max_size << "\n";
+        std::cerr << "Failed to allocate buffers for size " << max_size << std::endl;
         _mm_free(A);
         _mm_free(B);
         _mm_free(C);
@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
             kernel.fn(C, A, B, n);
             reference_dgemm(C_ref, A, B, n);
             if (!verify_matrix(C_ref, C, elems)) {
-                std::cerr << "Failed correctness verification at size " << n << ".\n";
+                std::cerr << "Failed correctness verification at size " << n << "." << std::endl;
                 _mm_free(A);
                 _mm_free(B);
                 _mm_free(C);
