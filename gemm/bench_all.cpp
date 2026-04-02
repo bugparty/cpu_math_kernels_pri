@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "../benchmark.h"
+#include "../include/benchmark.h"
 #include "dgemm.h"
 #include "dgemm7olds.h"
 

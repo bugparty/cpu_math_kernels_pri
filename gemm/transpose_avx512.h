@@ -3,7 +3,7 @@
 
 #include <immintrin.h>
 #include <algorithm>
-#include "compiler_compat.h"
+#include "../include/compiler_compat.h"
 
 #ifdef __AVX512F__
 /*

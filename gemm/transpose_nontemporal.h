@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <immintrin.h>
-#include "compiler_compat.h"
+#include "../include/compiler_compat.h"
 
 // Non-temporal (streaming) store transpose.
 // Bypasses cache on writes to avoid write-allocate overhead,

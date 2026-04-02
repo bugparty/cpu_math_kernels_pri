@@ -1,7 +1,7 @@
 ﻿#ifndef TRANSPOSE_RECURSIVE_H
 #define TRANSPOSE_RECURSIVE_H
 
-#include "compiler_compat.h"
+#include "../include/compiler_compat.h"
 
 namespace {  // anonymous namespace to avoid ODR issues
 

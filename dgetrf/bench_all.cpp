@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "../benchmark.h"
+#include "../include/benchmark.h"
 #include "include.h"
 #include "func_call.c"
 

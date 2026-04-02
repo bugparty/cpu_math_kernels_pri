@@ -5,7 +5,7 @@
 #include <immintrin.h>
 #include <cstddef>
 #include <cstdint>
-#include "compiler_compat.h"
+#include "../include/compiler_compat.h"
 
 // Forward declarations of micro-kernels to avoid "not declared in this scope" errors in template functions
 static inline void transpose8x8_f64_nt_avx2_pf(const double *src, std::ptrdiff_t src_ld, double *dst, std::ptrdiff_t dst_ld);

@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "../benchmark.h"
+#include "../include/benchmark.h"
 #include "common.h"
 #include "transpose_experimental.h"
 #include "transpose_avx512.h"

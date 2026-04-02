@@ -2,7 +2,7 @@
 #define TRANSPOSE_PREFETCH_H
 
 #include <algorithm>
-#include "compiler_compat.h"
+#include "../include/compiler_compat.h"
 
 /**
  * Tiled transpose with explicit software prefetch.
