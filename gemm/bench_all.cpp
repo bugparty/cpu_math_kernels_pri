@@ -1,4 +1,4 @@
-#include <algorithm>
+﻿#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -12,6 +12,14 @@
 #include "../benchmark.h"
 #include "dgemm.h"
 #include "dgemm7olds.h"
+
+#ifndef GEMM_HAVE_MKL
+#define GEMM_HAVE_MKL 0
+#endif
+
+#if GEMM_HAVE_MKL
+#include <mkl.h>
+#endif
 
 // B_T is declared extern in dgemm.h; we own the allocation here
 double *B_T = nullptr;
@@ -128,18 +136,12 @@ private:
 // Regular kernel: runs at all sizes
 #define REGISTER_GEMM(namestr, fn)                                             \
     static GemmBenchmark _gbench_##fn(namestr, fn);                            \
-    static int _greg_##fn = [] {                                               \
-        BenchmarkRegistry::instance().add(&_gbench_##fn);                      \
-        return 0;                                                               \
-    }()
+    static int _greg_##fn = (BenchmarkRegistry::instance().add(&_gbench_##fn), 0)
 
 // Slow kernel: skipped above max_n_limit
 #define REGISTER_GEMM_SLOW(namestr, fn, limit)                                 \
     static GemmBenchmark _gbench_##fn(namestr, fn, limit);                     \
-    static int _greg_##fn = [] {                                               \
-        BenchmarkRegistry::instance().add(&_gbench_##fn);                      \
-        return 0;                                                               \
-    }()
+    static int _greg_##fn = (BenchmarkRegistry::instance().add(&_gbench_##fn), 0)
 
 // ---------------------------------------------------------------------------
 // Register all GEMM kernels
@@ -150,6 +152,16 @@ private:
 static void reference_wrapper(double *C, double *A, double *B, int n) {
     reference_dgemm(C, A, B, n);
 }
+
+#if GEMM_HAVE_MKL
+static void dgemm_mkl_wrapper(double *C, double *A, double *B, int n) {
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+                n, n, n,
+                1.0, A, n,
+                B, n,
+                1.0, C, n);
+}
+#endif
 
 // Slow O(n^3) naive kernels: capped at n<=1000 to avoid multi-minute runtimes
 REGISTER_GEMM_SLOW("reference",  reference_wrapper, 1000);
@@ -164,13 +176,20 @@ REGISTER_GEMM     ("dgemm7_raw", dgemm7_raw);
 REGISTER_GEMM     ("dgemm7_ijk", dgemm7_ijk);
 REGISTER_GEMM     ("dgemm7_kij", dgemm7_kij);
 REGISTER_GEMM     ("dgemm7_ikj", dgemm7_ikj);
+#if GEMM_HAVE_MKL
+REGISTER_GEMM     ("mkl_dgemm",  dgemm_mkl_wrapper);
+#endif
 // dgemmAVX lacks cache blocking and becomes memory-bandwidth-bound beyond n~1500;
 // cap at 2000 to keep benchmark runtime reasonable
 REGISTER_GEMM_SLOW("dgemmAVX",   dgemmAVX,          2000);
 #ifdef __AVX512F__
-REGISTER_GEMM     ("dgemm7",     dgemm7);
+REGISTER_GEMM     ("dgemm7",       dgemm7);
+REGISTER_GEMM     ("dgemm7_v2",    dgemm7_v2);
 REGISTER_GEMM     ("dgemmAVX512",  dgemmAVX512);
 REGISTER_GEMM     ("dgemmAVX512B", dgemmAVX512B);
+#endif
+#ifdef __AVX2__
+REGISTER_GEMM     ("dgemm7_v2_avx2", dgemm7_v2_avx2);
 #endif
 
 // ---------------------------------------------------------------------------

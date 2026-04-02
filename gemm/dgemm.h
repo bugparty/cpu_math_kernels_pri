@@ -24,6 +24,10 @@ extern "C" {
     void dgemm7_ikj(double *C,double *A,double *B,int n);
 #ifdef __AVX512F__
     void dgemm7(double *C,double *A,double *B,int n);
+    void dgemm7_v2(double *C,double *A,double *B,int n);
+#endif
+#ifdef __AVX2__
+    void dgemm7_v2_avx2(double *C,double *A,double *B,int n);
 #endif
 
     void transpose( const double  * const A, double * const  A_T, int n);

@@ -1,1 +1,13 @@
 build
+.vs/
+CMakeFiles
+x64
+dgetrf/Debug/
+dgetrf/hw2_main.dir/
+gemm/gemm_bench_all.dir/
+dgetrf/hw2_test1.dir
+gemm/transpose_bench.dir
+gemm/gemm_bench.dir/
+gemm/Debug
+gemm/Release
+_cmake_check/

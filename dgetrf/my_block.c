@@ -6,6 +6,13 @@
 #include <math.h>
 #include <stdlib.h>
 
+#if defined(__clang__) || defined(__GNUC__)
+#define DGETRF_PRAGMA_IMPL(x) _Pragma(#x)
+#define DGETRF_UNROLL_4 DGETRF_PRAGMA_IMPL(GCC unroll 4)
+#else
+#define DGETRF_UNROLL_4
+#endif
+
 void printM2(double* A, int x1,int x2,int y1,int y2,int n){
 #ifdef DEBUGPRINT
     puts("begin matrix");
@@ -52,7 +59,7 @@ int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
                 /*     for ii=x1+k+1:x2 %x1+k is the top row, divide
                         A(ii,jj)=A(ii,jj)/A(x1+k,y1+k);
                  */
-                #pragma GCC unroll 4
+                DGETRF_UNROLL_4
                 for(ii=x1+k+1;ii<=x2;++ii){
                     A[ii*n+jj] /=  A[(x1+k)*n+y1+k];
                 }
@@ -62,7 +69,7 @@ int mydgetrf2(double *A,int x1,int x2,int y1,int y2, int *ipiv,int n){
             }else{
 //                                for ii=x1+k+1:x2 % subtract
 //                        A(ii,jj)=A(ii,jj)-A(ii,divColumn)*A(x1+k,jj);
-                #pragma GCC unroll 4
+                DGETRF_UNROLL_4
                 for(ii=x1+k+1;ii<=x2;++ii){
                     A[ii*n+jj] -=  A[ii*n+divColumn]*A[(x1+k)*n+jj];
                 }
@@ -139,7 +146,7 @@ void kernel_reg16(double *C,int n,int i,int j,int k){
 
                 c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
                 c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
-                _mm_prefetch(&C[tbb],3);
+                PREFETCH(&C[tbb],3);
 
 
                 c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
@@ -150,7 +157,7 @@ void kernel_reg16(double *C,int n,int i,int j,int k){
 
                 c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
                 c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
-                _mm_prefetch(&C[tbbb],3);
+                PREFETCH(&C[tbbb],3);
                 c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
                 c03 -= a00 * b03; c13 -= a10 * b03; c23 -= a20 * b03; c33 -= a30 * b03;
 
@@ -160,7 +167,7 @@ void kernel_reg16(double *C,int n,int i,int j,int k){
 
                 c00 -= a00 * b00; c10 -= a10 * b00; c20 -= a20 * b00; c30 -= a30 * b00;
                 c01 -= a00 * b01; c11 -= a10 * b01; c21 -= a20 * b01; c31 -= a30 * b01;
-                 _mm_prefetch(&C[tb4],3);
+                 PREFETCH(&C[tb4],3);
                 c02 -= a00 * b02; c12 -= a10 * b02; c22 -= a20 * b02; c32 -= a30 * b02;
                 c03 -= a00 * b03; c13 -= a10 * b03; c23 -= a20 * b03; c33 -= a30 * b03;
 
@@ -187,7 +194,7 @@ static const int BLOCK_SIZE=64;
 __m256d neg_one = _mm256_set1_pd(-1.0);
 for (ii=i;ii<i+BLOCK_SIZE;ii++)
 {
-    #pragma GCC unroll 4
+    DGETRF_UNROLL_4
     for (jj=j;jj<j+BLOCK_SIZE;jj+=8)
     {
      double *pCij = &C[ii*n+jj];
@@ -210,16 +217,16 @@ for (ii=i;ii<i+BLOCK_SIZE;ii++)
         const int kj = kk*n+jj;
         const double* pCkj = &C[kj];
 
-        _mm_prefetch(pCkj, 3);
+        PREFETCH(pCkj, 3);
 
         __m256d negatedCikX4 = _mm256_mul_pd(CikX4, neg_one);
         const double * pCkj1n = pCkj+n;
-        __m128d xmm0 = _mm256_extractf128_pd(negatedCikX4, 0); // 提取低 128 位
+        __m128d xmm0 = _mm256_extractf128_pd(negatedCikX4, 0); // Extract lower 128 bits
         const double * pCkj2n = pCkj1n+n;
 
-        __m128d xmm1 = _mm256_extractf128_pd(negatedCikX4, 1); // 提取高 128 位
+        __m128d xmm1 = _mm256_extractf128_pd(negatedCikX4, 1); // Extract upper 128 bits
           const double * pCkj3n = pCkj2n+n;
-         _mm_prefetch(pCkj1n, 3);
+         PREFETCH(pCkj1n, 3);
         __m512d Aikx8 = _mm512_broadcastsd_pd(_mm_permute_pd(xmm0, 0b00));//A a(i,k)  a(i,k) a(i,k) a(i,k)
         __m512d Aikx8t = _mm512_broadcastsd_pd(_mm_permute_pd(xmm0, 0b11));
         __m512d Aikx8tt = _mm512_broadcastsd_pd(_mm_permute_pd(xmm1, 0b00));

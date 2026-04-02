@@ -1,4 +1,4 @@
-#ifndef __MY_C__
+﻿#ifndef __MY_C__
 #define __MY_C__
 
 #include "include.h"
@@ -11,6 +11,7 @@ void swapRow(double *A, int n, int first, int second){
         A[second*n+i] =t;
     }
 }
+#ifdef __AVX512F__
 void swapRow3(double *A, int n, int first, int second) {
     int i;
 
@@ -41,8 +42,8 @@ void swapRow2(double *A, int n, int first, int second) {
     // Pointers to the beginning of the rows
     double* row1 = A + first * n;
     double* row2 = A + second * n;
-_mm_prefetch(row1, 3);
-_mm_prefetch(row2, 3);
+PREFETCH(row1, 3);
+PREFETCH(row2, 3);
     // Process 8 doubles (512 bits) at a time
     for (i = 0; i < n; i += 8) {
         double * row1p = &row1[i];
@@ -52,10 +53,18 @@ _mm_prefetch(row2, 3);
         __m512d vec2 = _mm512_load_pd(row2p);
         _mm512_store_pd(row1p, vec2);
         _mm512_store_pd(row2p, vec1);
-        _mm_prefetch(row1p+16, 3);
-        _mm_prefetch(row2p+16, 3);
+        PREFETCH(row1p+16, 3);
+        PREFETCH(row2p+16, 3);
     }
 }
+#else
+void swapRow3(double *A, int n, int first, int second) {
+    swapRow(A, n, first, second);
+}
+void swapRow2(double *A, int n, int first, int second) {
+    swapRow(A, n, first, second);
+}
+#endif
 
 int mydgetrf(double *A,int *ipiv,int n)
 {

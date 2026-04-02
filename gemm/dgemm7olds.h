@@ -1,4 +1,10 @@
-#pragma once
+﻿#pragma once
+
+#if defined(_MSC_VER) && !defined(__builtin_prefetch)
+#include <xmmintrin.h>
+#define __builtin_prefetch(addr, rw, locality) \
+    _mm_prefetch(reinterpret_cast<const char*>(addr), _MM_HINT_T0)
+#endif
 
 template<int BLOCK_SIZE, int STRIDE>
 void kernel_R4x4(double *C, double *A, double *B, int n, int i, int j, int k)
@@ -21,7 +27,7 @@ void kernel_R4x4(double *C, double *A, double *B, int n, int i, int j, int k)
                 register int ta = ii*n + kk;
                 register int tta = ta + n;
                 register int ttta = tta + n;
-                register int tttta = ttta + n;
+                            register int tttta = ttta + n;
                 register double a00 = A[ta];
                 register double a10 = A[tta];
                 register double a20 = A[ttta];

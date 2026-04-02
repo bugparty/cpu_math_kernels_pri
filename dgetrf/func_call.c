@@ -1,15 +1,24 @@
-#ifndef __FUNC_CALL_C__
+﻿#ifndef __FUNC_CALL_C__
 #define __FUNC_CALL_C__
 
+#if DGETRF_HAVE_EXTERNAL_BLAS_LAPACK
 #include "lapack.c"
+#endif
 #include "my.c"
+#ifdef __AVX512F__
 #include "my_block.c"
+#endif
 
 void func_call(char *func_name,double *A,double *B,int n)
 {
     if (strcmp(func_name,"lapack")==0)
     {
+#if DGETRF_HAVE_EXTERNAL_BLAS_LAPACK
         lapack_f(A,B,n);
+#else
+        printf("Error: lapack solver unavailable (BLAS/LAPACK headers/libs not found)\n");
+        exit(1);
+#endif
         return; 
     }
     if (strcmp(func_name,"my")==0)
@@ -19,7 +28,12 @@ void func_call(char *func_name,double *A,double *B,int n)
     }
     if (strcmp(func_name,"my_block")==0)
     {
+#ifdef __AVX512F__
         my_block_f(A,B,n);
+#else
+        printf("Error: my_block solver unavailable (AVX-512 required)\n");
+        exit(1);
+#endif
         return;
     }
     printf("Error: Invalid function name\n");

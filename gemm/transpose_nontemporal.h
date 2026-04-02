@@ -1,8 +1,9 @@
-#ifndef TRANSPOSE_NONTEMPORAL_H
+﻿#ifndef TRANSPOSE_NONTEMPORAL_H
 #define TRANSPOSE_NONTEMPORAL_H
 
 #include <algorithm>
 #include <immintrin.h>
+#include "compiler_compat.h"
 
 // Non-temporal (streaming) store transpose.
 // Bypasses cache on writes to avoid write-allocate overhead,

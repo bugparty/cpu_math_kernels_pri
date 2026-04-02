@@ -1,8 +1,9 @@
-#ifndef TRANSPOSE_AVX512_H
+﻿#ifndef TRANSPOSE_AVX512_H
 #define TRANSPOSE_AVX512_H
 
 #include <immintrin.h>
 #include <algorithm>
+#include "compiler_compat.h"
 
 #ifdef __AVX512F__
 /*

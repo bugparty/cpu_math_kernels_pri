@@ -1,8 +1,9 @@
 #include <immintrin.h>
+#include <stdlib.h>
 #define BLOCK_SIZE 64
 
-
-void kernel_Avx512_S4_v2(double *C,double *A,double *B,int n,int i,int j,int k)
+#ifdef __AVX512F__
+void kernel_Avx512_S4_v2(double *C,double *A,double *B_T,int n,int i,int j,int k)
 {
 register int m,n_,k_;
 for (m=i;m<i+BLOCK_SIZE;m++)
@@ -31,38 +32,54 @@ for (m=i;m<i+BLOCK_SIZE;m++)
         a_broadcasted[1] = _mm512_broadcastsd_pd(_mm_load_sd(&A[a_offset+1]));
         a_broadcasted[2] = _mm512_broadcastsd_pd(_mm_load_sd(&A[a_offset+2]));
         a_broadcasted[3] = _mm512_broadcastsd_pd(_mm_load_sd(&A[a_offset+3]));
-        // B b(k,j) b(k,j+1) b(k,j+2) b(k,j+3)
-        //so result are a(i,k)*b(k,j),  a(i,k)*b(k,j+1), a(i,k)*b(k,j+2), a(i,k)*b(k,j+3),
-        int b_offset = k_*n+n_;
-        // Load 4 consecutive rows from B, each row has 8 consecutive elements
+        // B_T stores original B columns as contiguous rows
+        int bt_offset = n_ * n + k_;
         __m512d b_rows[4];//4*8 doubles
-        b_rows[0] = _mm512_loadu_pd(&B[b_offset]);
-        b_rows[1] = _mm512_loadu_pd(&B[b_offset+n]);
-        b_rows[2] = _mm512_loadu_pd(&B[b_offset+2*n]);
-        b_rows[3] = _mm512_loadu_pd(&B[b_offset+3*n]);
+        b_rows[0] = _mm512_loadu_pd(&B_T[bt_offset]);
+        b_rows[1] = _mm512_loadu_pd(&B_T[bt_offset + n]);
+        b_rows[2] = _mm512_loadu_pd(&B_T[bt_offset + 2 * n]);
+        b_rows[3] = _mm512_loadu_pd(&B_T[bt_offset + 3 * n]);
         c_result_vec = _mm512_fmadd_pd(a_broadcasted[0], b_rows[0], c_result_vec);
         c_result_vec = _mm512_fmadd_pd(a_broadcasted[1], b_rows[1], c_result_vec);
         c_result_vec = _mm512_fmadd_pd(a_broadcasted[2], b_rows[2], c_result_vec);
         c_result_vec = _mm512_fmadd_pd(a_broadcasted[3], b_rows[3], c_result_vec);
-        // c += A[ink]*B_T[jnk];
-        // c += A[ink+1]*B_T[jnk+1];
-        // c += A[ink+2]*B_T[jnk+2];
-        // c += A[ink+3]*B_T[jnk+3];
     }
     //C[i*n+j]=c;
     _mm512_storeu_pd(&C[c_offset], c_result_vec);
     }
     }
 }
+#endif // __AVX512F__
+
+#ifdef __AVX512F__
 //state of art 
 void dgemm7_v2(double *C,double *A,double *B,int n)
 {
-    // Iterate over 64x64 blocks in blocking order: row blocks -> k-accumulation blocks -> column blocks
+    double *B_T = (double *)malloc((size_t)n * (size_t)n * sizeof(double));
+    int row, col;
     int block_i, block_k, block_j;
+
+    if (B_T == NULL)
+    {
+        return;
+    }
+
+    for (row = 0; row < n; ++row)
+    {
+        for (col = 0; col < n; ++col)
+        {
+            B_T[col * n + row] = B[row * n + col];
+        }
+    }
+
+    // Iterate over 64x64 blocks in blocking order: row blocks -> k-accumulation blocks -> column blocks
     for (block_i = 0; block_i < n; block_i += BLOCK_SIZE)
         for (block_k = 0; block_k < n; block_k += BLOCK_SIZE)
             for (block_j = 0; block_j < n; block_j += BLOCK_SIZE)
             {
-                kernel_Avx512_S4_v2(C,A,B,n,block_i,block_j,block_k);
+                kernel_Avx512_S4_v2(C,A,B_T,n,block_i,block_j,block_k);
             }
+
+    free(B_T);
 }
+#endif // __AVX512F__

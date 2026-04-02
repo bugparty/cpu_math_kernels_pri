@@ -1,6 +1,6 @@
 # cs211monorepo
 
-![GEMM Benchmarks](https://github.com/bugparty/cpu_math_kernels/actions/workflows/benchmark.yml/badge.svg)
+![GEMM Benchmarks](https://github.com/bugparty/cpu_math_kernels/actions/workflows/benchmark_gemm.yml/badge.svg)
 
 ## Install Dependencies
 
@@ -35,4 +35,4 @@ cd gemm
 
 ## GitHub Actions
 
-Benchmarks run automatically on every push. See [.github/ACTIONS_README.md](.github/ACTIONS_README.md) for details.  
+The `build` workflow compiles all three subprojects on every push, and `benchmark_gemm` runs the GEMM benchmark workflow. See [.github/ACTIONS_README.md](.github/ACTIONS_README.md) for details.

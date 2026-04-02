@@ -1,4 +1,4 @@
-#include <algorithm>
+﻿#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -11,11 +11,19 @@
 
 #include "../benchmark.h"
 #include "common.h"
+#include "transpose_experimental.h"
 #include "transpose_avx512.h"
 #include "transpose_recursive.h"
 #include "transpose_prefetch.h"
 #include "transpose_nontemporal.h"
-#include "transpose_2level.h"
+
+#ifndef GEMM_HAVE_MKL
+#define GEMM_HAVE_MKL 0
+#endif
+
+#if GEMM_HAVE_MKL
+#include <mkl.h>
+#endif
 
 // ---------------------------------------------------------------------------
 // TransposeBenchmark — wraps a transpose kernel function
@@ -128,6 +136,12 @@ static void transpose_tiled_wrapper(const double *A, double *A_T, int n) {
     transpose_tiled(A, A_T, n);
 }
 
+#if GEMM_HAVE_MKL
+static void transpose_mkl_domatcopy_wrapper(const double *A, double *A_T, int n) {
+    mkl_domatcopy('R', 'T', n, n, 1.0, A, n, A_T, n);
+}
+#endif
+
 // Register benchmarks
 // Wrapper for transpose_2level_tuned (template -> function pointer)
 static void transpose_2level_tuned_wrapper(const double *A, double *AT, int n) {
@@ -150,6 +164,10 @@ static void transpose_2level_tuned_avx2_wrapper(const double *A, double *AT, int
     transpose_2level_tuned_avx2<256, 32>(A, AT, n);
 }
 
+static void transpose_2level_tuned_hinted_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_hinted<256, 32>(A, AT, n);
+}
+
 static void transpose_2level_tuned_avx2_128_32_wrapper(const double *A, double *AT, int n) {
     transpose_2level_tuned_avx2<128, 32>(A, AT, n);
 }
@@ -160,6 +178,38 @@ static void transpose_2level_tuned_avx2_256_64_wrapper(const double *A, double *
 
 static void transpose_2level_tuned_avx2_512_64_wrapper(const double *A, double *AT, int n) {
     transpose_2level_tuned_avx2<512, 64>(A, AT, n);
+}
+
+static void transpose_2level_tuned_avx2_nt_pf_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_avx2_nt_pf<256, 32>(A, AT, n);
+}
+
+static void transpose_2level_tuned_avx2_nt_pf_128_32_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_avx2_nt_pf<128, 32>(A, AT, n);
+}
+
+static void transpose_2level_tuned_avx2_nt_pf_256_64_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_avx2_nt_pf<256, 64>(A, AT, n);
+}
+
+static void transpose_2level_tuned_avx2_nt_pf_512_64_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_avx2_nt_pf<512, 64>(A, AT, n);
+}
+
+static void transpose_2level_tuned_avx2_nt_pf_v2_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_avx2_nt_pf_v2<256, 32>(A, AT, n);
+}
+
+static void transpose_2level_tuned_avx2_nt_pf_nofence_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_avx2_nt_pf_nofence<256, 32>(A, AT, n);
+}
+
+static void transpose_2level_tuned_avx2_pf_store_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_avx2_pf_store<256, 32>(A, AT, n);
+}
+
+static void transpose_2level_tuned_avx2_nt_pf_ab_tile128_wrapper(const double *A, double *AT, int n) {
+    transpose_2level_tuned_avx2_nt_pf<128, 32>(A, AT, n);
 }
 
 static void transpose_2level_tuned_avx512_wrapper(const double *A, double *AT, int n) {
@@ -182,18 +232,22 @@ REGISTER_TRANSPOSE_SLOW("transpose_naive", transpose_naive_wrapper, 4096);
 REGISTER_TRANSPOSE("transpose_tiled", transpose_tiled_wrapper);
 REGISTER_TRANSPOSE("transpose_tiled_v2", transpose_tiled_v2);
 REGISTER_TRANSPOSE("transpose_tiled_v3", transpose_tiled_v3);
-REGISTER_TRANSPOSE("transpose_tiled_v4", transpose_tiled_v4);
-REGISTER_TRANSPOSE("transpose_tiled_v5", transpose_tiled_v5);
-REGISTER_TRANSPOSE("transpose_tiled_v6", transpose_tiled_v6);
+//REGISTER_TRANSPOSE("transpose_tiled_v4", transpose_tiled_v4);
+//REGISTER_TRANSPOSE("transpose_tiled_v5", transpose_tiled_v5);
+//REGISTER_TRANSPOSE("transpose_tiled_v6", transpose_tiled_v6);
+#if GEMM_HAVE_MKL
+REGISTER_TRANSPOSE("mkl_domatcopy", transpose_mkl_domatcopy_wrapper);
+#endif
 // --- New kernels from optimization team ---
-REGISTER_TRANSPOSE("avx512_8x8",       transpose_avx512);
-REGISTER_TRANSPOSE("recursive",        transpose_recursive);
-REGISTER_TRANSPOSE("prefetch",         transpose_prefetch);
-REGISTER_TRANSPOSE("prefetch_v2",      transpose_prefetch_v2);
-REGISTER_TRANSPOSE("prefetch_v3",      transpose_prefetch_v3);
-REGISTER_TRANSPOSE("nontemporal",      transpose_nontemporal);
+//REGISTER_TRANSPOSE("avx512_8x8",       transpose_avx512);
+//REGISTER_TRANSPOSE("recursive",        transpose_recursive);
+//REGISTER_TRANSPOSE("prefetch",         transpose_prefetch);
+//REGISTER_TRANSPOSE("prefetch_v2",      transpose_prefetch_v2);
+//REGISTER_TRANSPOSE("prefetch_v3",      transpose_prefetch_v3);
+//REGISTER_TRANSPOSE("nontemporal",      transpose_nontemporal);
 REGISTER_TRANSPOSE("2level_256_32",    transpose_2level);
 REGISTER_TRANSPOSE("2level_tuned",     transpose_2level_tuned_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_hinted", transpose_2level_tuned_hinted_wrapper);
 REGISTER_TRANSPOSE("2level_tuned_128_32", transpose_2level_tuned_128_32_wrapper);
 REGISTER_TRANSPOSE("2level_tuned_256_64", transpose_2level_tuned_256_64_wrapper);
 REGISTER_TRANSPOSE("2level_tuned_512_64", transpose_2level_tuned_512_64_wrapper);
@@ -201,10 +255,19 @@ REGISTER_TRANSPOSE("2level_tuned_avx2", transpose_2level_tuned_avx2_wrapper);
 REGISTER_TRANSPOSE("2level_tuned_avx2_128_32", transpose_2level_tuned_avx2_128_32_wrapper);
 REGISTER_TRANSPOSE("2level_tuned_avx2_256_64", transpose_2level_tuned_avx2_256_64_wrapper);
 REGISTER_TRANSPOSE("2level_tuned_avx2_512_64", transpose_2level_tuned_avx2_512_64_wrapper);
-REGISTER_TRANSPOSE("2level_tuned_avx512", transpose_2level_tuned_avx512_wrapper);
-REGISTER_TRANSPOSE("2level_tuned_avx512_128_32", transpose_2level_tuned_avx512_128_32_wrapper);
-REGISTER_TRANSPOSE("2level_tuned_avx512_256_64", transpose_2level_tuned_avx512_256_64_wrapper);
-REGISTER_TRANSPOSE("2level_tuned_avx512_512_64", transpose_2level_tuned_avx512_512_64_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_avx2_nt_pf", transpose_2level_tuned_avx2_nt_pf_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_avx2_nt_pf_128_32", transpose_2level_tuned_avx2_nt_pf_128_32_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_avx2_nt_pf_256_64", transpose_2level_tuned_avx2_nt_pf_256_64_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_avx2_nt_pf_512_64", transpose_2level_tuned_avx2_nt_pf_512_64_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_avx2_nt_pf_v2", transpose_2level_tuned_avx2_nt_pf_v2_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_avx2_nt_pf_nofence", transpose_2level_tuned_avx2_nt_pf_nofence_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_avx2_pf_store", transpose_2level_tuned_avx2_pf_store_wrapper);
+REGISTER_TRANSPOSE("2level_tuned_avx2_nt_pf_ab_tile128", transpose_2level_tuned_avx2_nt_pf_ab_tile128_wrapper);
+
+//REGISTER_TRANSPOSE("2level_tuned_avx512", transpose_2level_tuned_avx512_wrapper);
+//REGISTER_TRANSPOSE("2level_tuned_avx512_128_32", transpose_2level_tuned_avx512_128_32_wrapper);
+//REGISTER_TRANSPOSE("2level_tuned_avx512_256_64", transpose_2level_tuned_avx512_256_64_wrapper);
+//REGISTER_TRANSPOSE("2level_tuned_avx512_512_64", transpose_2level_tuned_avx512_512_64_wrapper);
 
 // ---------------------------------------------------------------------------
 // Utility: parse comma-separated sizes
@@ -227,8 +290,8 @@ int main(int argc, char **argv) {
     int iters  = 3;
     int warmup = 1;
     // Default sizes (powers of 2)
-    std::string sizes_str = "256,512,1024,2048,4096,8192";
-
+    //std::string sizes_str = "256,512,1024,2048,4096,8192";
+    std::string sizes_str = "1024,2048,4096";
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if ((a == "--iters" || a == "-i") && i + 1 < argc)
