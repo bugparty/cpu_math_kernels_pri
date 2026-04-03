@@ -14,6 +14,7 @@
 #include "benchmark.h"
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/relu.h"
+#include "ml_kernels/softmax.h"
 
 namespace {
 
@@ -21,6 +22,9 @@ static bool g_use_pool = true;
 
 #ifdef __linux__
 void bind_default_benchmark_cpus() {
+    if (std::getenv("DISABLE_CPU_BINDING")) {
+        return;
+    }
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(10, &set);
@@ -235,7 +239,10 @@ public:
         run();
         constexpr float tol = 1e-5f;
         for (std::size_t i = 0; i < outputs_[0].size(); ++i) {
-            if (std::fabs(outputs_[0][i] - output_ref_[i]) > tol) {
+            float diff = std::fabs(outputs_[0][i] - output_ref_[i]);
+            if (diff > tol) {
+                std::cerr << "Mismatch at " << i << ": expected " << output_ref_[i]
+                          << ", got " << outputs_[0][i] << " (diff=" << diff << ")" << std::endl;
                 return false;
             }
         }
@@ -254,7 +261,7 @@ public:
 
     double flops(int n) const override { return 4.0 * n; }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     std::vector<AlignedBuffer<float>> outputs_;
     AlignedBuffer<float> output_ref_;
@@ -262,8 +269,18 @@ private:
     std::size_t current_idx_ = 0;
 };
 
-// REGISTER_BENCHMARK(MaxBenchmark);
-// REGISTER_BENCHMARK(SoftmaxBenchmark);
+REGISTER_BENCHMARK(MaxBenchmark);
+REGISTER_BENCHMARK(SoftmaxBenchmark);
+
+class SoftmaxV2Benchmark : public SoftmaxBenchmark {
+public:
+    const char *name() const override { return "softmax_v2"; }
+    void run() override {
+        ml_kernels::softmax_v2(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        current_idx_ = (current_idx_ + 1) % pool_size_;
+    }
+};
+REGISTER_BENCHMARK(SoftmaxV2Benchmark);
 std::vector<int> parse_sizes(const std::string &s) {
     std::vector<int> out;
     std::stringstream ss(s);
