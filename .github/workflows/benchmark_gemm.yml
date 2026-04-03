@@ -66,14 +66,14 @@ jobs:
         ls -lh build/dgetrf/dgetrf_bench_all
         ./build/dgetrf/dgetrf_bench_all --iters 1 --warmup 0 --sizes 96
         ls -lh build/ml_kernels/ml_kernel_bench
-        ./build/ml_kernels/ml_kernel_bench --iters 1 --warmup 0 --sizes 96
+        DISABLE_CPU_BINDING=1 ./build/ml_kernels/ml_kernel_bench --iters 1 --warmup 0 --sizes 96
     
     - name: Run benchmarks
       run: |
         mkdir -p benchmark_results
         ./build/gemm/gemm_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/gemm_bench_all.log
         ./build/dgetrf/dgetrf_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/dgetrf_bench_all.log
-        ./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/ml_kernel_bench.log
+        DISABLE_CPU_BINDING=1 ./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/ml_kernel_bench.log
       timeout-minutes: 120  # 2 hours max
       continue-on-error: true  # Don't fail if benchmark times out
     
