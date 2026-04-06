@@ -15,6 +15,7 @@
 #include "benchmark.h"
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/relu.h"
+#include "ml_kernels/softmax.h"
 
 namespace {
 
@@ -105,7 +106,7 @@ public:
 
     double flops(int n) const override { return static_cast<double>(n); }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     std::vector<AlignedBuffer<float>> outputs_;
     AlignedBuffer<float> output_ref_;
@@ -184,7 +185,7 @@ public:
 
     double flops(int n) const override { return static_cast<double>(n); }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     float result_ = 0.0f;
     float result_ref_ = 0.0f;
@@ -260,7 +261,7 @@ public:
 
     double flops(int n) const override { return 4.0 * n; }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     std::vector<AlignedBuffer<float>> outputs_;
     AlignedBuffer<float> output_ref_;
@@ -268,8 +269,18 @@ private:
     std::size_t current_idx_ = 0;
 };
 
-// REGISTER_BENCHMARK(MaxBenchmark);
-// REGISTER_BENCHMARK(SoftmaxBenchmark);
+REGISTER_BENCHMARK(MaxBenchmark);
+REGISTER_BENCHMARK(SoftmaxBenchmark);
+
+class SoftmaxV2Benchmark : public SoftmaxBenchmark {
+public:
+    const char *name() const override { return "softmax_v2"; }
+    void run() override {
+        ml_kernels::softmax_v2(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        current_idx_ = (current_idx_ + 1) % pool_size_;
+    }
+};
+REGISTER_BENCHMARK(SoftmaxV2Benchmark);
 std::vector<int> parse_sizes(const std::string &s) {
     std::vector<int> out;
     std::stringstream ss(s);
