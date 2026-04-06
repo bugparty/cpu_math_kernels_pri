@@ -52,10 +52,33 @@ for (m=i;m<i+BLOCK_SIZE;m++)
 #endif // __AVX512F__
 
 #ifdef __AVX512F__
+
+static __thread double *cached_B_T = NULL;
+static __thread size_t cached_B_T_size = 0;
+
 //state of art 
 void dgemm7_v2(double *C,double *A,double *B,int n)
 {
-    double *B_T = (double *)malloc((size_t)n * (size_t)n * sizeof(double));
+    size_t required_size = (size_t)n * (size_t)n * sizeof(double);
+    if (cached_B_T_size < required_size)
+    {
+        if (cached_B_T != NULL)
+        {
+            free(cached_B_T);
+        }
+        cached_B_T = (double *)malloc(required_size);
+        if (cached_B_T != NULL)
+        {
+            cached_B_T_size = required_size;
+        }
+        else
+        {
+            cached_B_T_size = 0;
+        }
+    }
+
+    double *B_T = cached_B_T;
+
     int row, col;
     int block_i, block_k, block_j;
 
@@ -79,7 +102,5 @@ void dgemm7_v2(double *C,double *A,double *B,int n)
             {
                 kernel_Avx512_S4_v2(C,A,B_T,n,block_i,block_j,block_k);
             }
-
-    free(B_T);
 }
 #endif // __AVX512F__
