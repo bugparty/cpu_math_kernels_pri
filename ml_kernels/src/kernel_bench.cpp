@@ -5,6 +5,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <cstdlib>
 
 #ifdef __linux__
 #include <sched.h>
@@ -21,6 +22,12 @@ static bool g_use_pool = true;
 
 #ifdef __linux__
 void bind_default_benchmark_cpus() {
+    const char* disable_binding = std::getenv("DISABLE_CPU_BINDING");
+    if (disable_binding && std::string(disable_binding) == "1") {
+        std::cout << "CPU binding disabled by DISABLE_CPU_BINDING environment variable." << std::endl;
+        return;
+    }
+
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(10, &set);
@@ -29,12 +36,11 @@ void bind_default_benchmark_cpus() {
     CPU_SET(13, &set);
 
     if (sched_setaffinity(0, sizeof(set), &set) != 0) {
-        std::cerr << "Failed to bind benchmark to CPUs 10,11,12,13: "
-                  << std::strerror(errno) << std::endl;
-        std::exit(2);
+        std::cerr << "Warning: Failed to bind benchmark to CPUs 10,11,12,13: "
+                  << std::strerror(errno) << ". Proceeding without CPU binding." << std::endl;
+    } else {
+        std::cout << "cpu_affinity=10,11,12,13" << std::endl;
     }
-
-    std::cout << "cpu_affinity=10,11,12,13" << std::endl;
 }
 #else
 void bind_default_benchmark_cpus() {}
