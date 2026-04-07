@@ -15,6 +15,7 @@ add_executable(ml_kernel_bench
     src/naive_ops.cpp
     src/kernel_bench.cpp
         include/ml_kernels/relu.h
+        include/ml_kernels/softmax.h
 )
 
 target_include_directories(ml_kernel_bench PRIVATE include ${CMAKE_SOURCE_DIR}/include)
