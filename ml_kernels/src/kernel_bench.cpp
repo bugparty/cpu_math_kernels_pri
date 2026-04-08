@@ -16,6 +16,7 @@
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/relu.h"
 #include "ml_kernels/softmax.h"
+#include "ml_kernels/max.h"
 
 namespace {
 
@@ -192,6 +193,17 @@ protected:
     std::size_t pool_size_ = 1;
     std::size_t current_idx_ = 0;
 };
+
+class MaxV2Benchmark : public MaxBenchmark {
+public:
+    const char *name() const override { return "max_v2"; }
+    void run() override {
+        result_ = ml_kernels::max_v2(inputs_[current_idx_].data(), inputs_[current_idx_].size());
+        current_idx_ = (current_idx_ + 1) % pool_size_;
+    }
+};
+
+REGISTER_BENCHMARK(MaxV2Benchmark);
 
 class SoftmaxBenchmark : public BenchmarkBase {
 public:

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <algorithm>
 #include <immintrin.h>
+#include "ml_kernels/max.h"
 
 namespace ml_kernels {
 
@@ -48,21 +49,12 @@ inline void softmax_v2(const float *input, float *output, std::size_t n) {
     if (n == 0) return;
 
     // 1. Find max
-    std::size_t i = 0;
-    __m256 max_v = _mm256_set1_ps(-INFINITY);
-    for (; i + 7 < n; i += 8) {
-        max_v = _mm256_max_ps(max_v, _mm256_loadu_ps(input + i));
-    }
-    float max_arr[8];
-    _mm256_storeu_ps(max_arr, max_v);
-    float max_val = max_arr[0];
-    for (int j = 1; j < 8; ++j) max_val = std::max(max_val, max_arr[j]);
-    for (; i < n; ++i) max_val = std::max(max_val, input[i]);
+    float max_val = max_v2(input, n);
 
     __m256 max_vec = _mm256_set1_ps(max_val);
 
     // 2. Compute exp and sum
-    i = 0;
+    std::size_t i = 0;
     __m256 sum_v = _mm256_setzero_ps();
     for (; i + 7 < n; i += 8) {
         __m256 x = _mm256_loadu_ps(input + i);
