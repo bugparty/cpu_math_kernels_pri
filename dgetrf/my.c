@@ -158,8 +158,6 @@ void backward(double *A,double *B,int n,int *ipiv){
 }
 void mydtrsv(char UPLO,double *A,double *B,int n,int *ipiv)
 {
-    double * y = (double*)malloc(n*sizeof(double));
-    double * orig = y;
     switch(UPLO){
         case 'L':
             forward(A,B,n,ipiv);
@@ -170,7 +168,6 @@ void mydtrsv(char UPLO,double *A,double *B,int n,int *ipiv)
         default:
             break;
     }
-    free(orig);
 }
 void printPivot(int* p,int n){
     for(int i=0;i<n;i++){
