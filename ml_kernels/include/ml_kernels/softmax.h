@@ -4,6 +4,7 @@
 #include <cmath>
 #include <algorithm>
 #include <immintrin.h>
+#include <limits>
 
 namespace ml_kernels {
 
@@ -86,6 +87,126 @@ inline void softmax_v2(const float *input, float *output, std::size_t n) {
     float inv_sum = 1.0f / sum_val;
     __m256 inv_sum_v = _mm256_set1_ps(inv_sum);
     i = 0;
+    for (; i + 7 < n; i += 8) {
+        _mm256_storeu_ps(output + i, _mm256_mul_ps(_mm256_loadu_ps(output + i), inv_sum_v));
+    }
+    for (; i < n; ++i) {
+        output[i] *= inv_sum;
+    }
+}
+
+// ⚡ Thunderbolt: AVX2 Vectorized Softmax with 4x unrolling and in-register reduction
+// Target: AVX2 (Haswell+)
+// Reason: 4x unrolling hides instruction latency. In-register reduction eliminates scalar loads/stores.
+// Expected gain: ~25-30% throughput improvement over v2 on medium/large inputs.
+inline float reduce_max(__m256 v) {
+    __m256 t1 = _mm256_permute2f128_ps(v, v, 1);
+    v = _mm256_max_ps(v, t1);
+    __m256 t2 = _mm256_shuffle_ps(v, v, _MM_SHUFFLE(1, 0, 3, 2));
+    v = _mm256_max_ps(v, t2);
+    __m256 t3 = _mm256_shuffle_ps(v, v, _MM_SHUFFLE(2, 3, 0, 1));
+    v = _mm256_max_ps(v, t3);
+    return _mm256_cvtss_f32(v);
+}
+
+inline float reduce_sum(__m256 v) {
+    __m256 t1 = _mm256_permute2f128_ps(v, v, 1);
+    v = _mm256_add_ps(v, t1);
+    __m256 t2 = _mm256_shuffle_ps(v, v, _MM_SHUFFLE(1, 0, 3, 2));
+    v = _mm256_add_ps(v, t2);
+    __m256 t3 = _mm256_shuffle_ps(v, v, _MM_SHUFFLE(2, 3, 0, 1));
+    v = _mm256_add_ps(v, t3);
+    return _mm256_cvtss_f32(v);
+}
+
+inline void softmax_v3(const float *input, float *output, std::size_t n) {
+    if (n == 0) return;
+
+    // 1. Find max
+    std::size_t i = 0;
+    __m256 max_v = _mm256_set1_ps(std::numeric_limits<float>::lowest());
+    __m256 max0 = max_v, max1 = max_v, max2 = max_v, max3 = max_v;
+
+    for (; i + 31 < n; i += 32) {
+        max0 = _mm256_max_ps(max0, _mm256_loadu_ps(input + i));
+        max1 = _mm256_max_ps(max1, _mm256_loadu_ps(input + i + 8));
+        max2 = _mm256_max_ps(max2, _mm256_loadu_ps(input + i + 16));
+        max3 = _mm256_max_ps(max3, _mm256_loadu_ps(input + i + 24));
+    }
+    max0 = _mm256_max_ps(max0, max1);
+    max2 = _mm256_max_ps(max2, max3);
+    max0 = _mm256_max_ps(max0, max2);
+    for (; i + 7 < n; i += 8) {
+        max0 = _mm256_max_ps(max0, _mm256_loadu_ps(input + i));
+    }
+    float max_val = reduce_max(max0);
+    for (; i < n; ++i) max_val = std::max(max_val, input[i]);
+
+    __m256 max_vec = _mm256_set1_ps(max_val);
+
+    // 2. Compute exp and sum
+    i = 0;
+    __m256 sum0 = _mm256_setzero_ps();
+    __m256 sum1 = _mm256_setzero_ps();
+    __m256 sum2 = _mm256_setzero_ps();
+    __m256 sum3 = _mm256_setzero_ps();
+
+    for (; i + 31 < n; i += 32) {
+        __m256 x0 = _mm256_loadu_ps(input + i);
+        __m256 x1 = _mm256_loadu_ps(input + i + 8);
+        __m256 x2 = _mm256_loadu_ps(input + i + 16);
+        __m256 x3 = _mm256_loadu_ps(input + i + 24);
+
+        __m256 e0 = exp256_ps(_mm256_sub_ps(x0, max_vec));
+        __m256 e1 = exp256_ps(_mm256_sub_ps(x1, max_vec));
+        __m256 e2 = exp256_ps(_mm256_sub_ps(x2, max_vec));
+        __m256 e3 = exp256_ps(_mm256_sub_ps(x3, max_vec));
+
+        _mm256_storeu_ps(output + i, e0);
+        _mm256_storeu_ps(output + i + 8, e1);
+        _mm256_storeu_ps(output + i + 16, e2);
+        _mm256_storeu_ps(output + i + 24, e3);
+
+        sum0 = _mm256_add_ps(sum0, e0);
+        sum1 = _mm256_add_ps(sum1, e1);
+        sum2 = _mm256_add_ps(sum2, e2);
+        sum3 = _mm256_add_ps(sum3, e3);
+    }
+    sum0 = _mm256_add_ps(sum0, sum1);
+    sum2 = _mm256_add_ps(sum2, sum3);
+    sum0 = _mm256_add_ps(sum0, sum2);
+
+    for (; i + 7 < n; i += 8) {
+        __m256 x = _mm256_loadu_ps(input + i);
+        __m256 e = exp256_ps(_mm256_sub_ps(x, max_vec));
+        _mm256_storeu_ps(output + i, e);
+        sum0 = _mm256_add_ps(sum0, e);
+    }
+
+    float sum_val = reduce_sum(sum0);
+    for (; i < n; ++i) {
+        float e = std::exp(input[i] - max_val);
+        output[i] = e;
+        sum_val += e;
+    }
+
+    if (sum_val == 0.0f) return;
+
+    // 3. Normalize
+    float inv_sum = 1.0f / sum_val;
+    __m256 inv_sum_v = _mm256_set1_ps(inv_sum);
+    i = 0;
+    for (; i + 31 < n; i += 32) {
+        __m256 o0 = _mm256_loadu_ps(output + i);
+        __m256 o1 = _mm256_loadu_ps(output + i + 8);
+        __m256 o2 = _mm256_loadu_ps(output + i + 16);
+        __m256 o3 = _mm256_loadu_ps(output + i + 24);
+
+        _mm256_storeu_ps(output + i, _mm256_mul_ps(o0, inv_sum_v));
+        _mm256_storeu_ps(output + i + 8, _mm256_mul_ps(o1, inv_sum_v));
+        _mm256_storeu_ps(output + i + 16, _mm256_mul_ps(o2, inv_sum_v));
+        _mm256_storeu_ps(output + i + 24, _mm256_mul_ps(o3, inv_sum_v));
+    }
     for (; i + 7 < n; i += 8) {
         _mm256_storeu_ps(output + i, _mm256_mul_ps(_mm256_loadu_ps(output + i), inv_sum_v));
     }
