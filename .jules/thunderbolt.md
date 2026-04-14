@@ -1,7 +1,4 @@
-## 2024-10-24 - AVX2 Vectorized Softmax Implementation
-
-**Learning:** When vectorizing transcendental functions like `exp` in AVX2, standard Horner's method (`p = _mm256_fmadd_ps(p, r, c)`) creates a strict dependency chain bounded by the 4-cycle FMA latency. Estrin's scheme can break this chain and yield higher ILP. Additionally, standard library headers like `<algorithm>` for `std::max` should always be explicitly included even when not strictly required by the current benchmark/compiler, to avoid cross-platform compilation errors.
-
-**Evidence:** The initial scalar `softmax_naive` hovered around 0.6 GFLOP/s, while `softmax_v2` using AVX2 range reduction, Taylor polynomial approximation, and vectorized reduction achieved 4.6 GFLOP/s (~7.6x speedup) on an N=100000 benchmark.
-
-**Action:** In future mathematical kernel implementations with high-degree polynomials, investigate Estrin's scheme for better FMA latency hiding. Always double-check standard include requirements, especially for heavily templated functionality like `<algorithm>`.
+## 2024-05-18 - In-register Tree Reduction vs. Scalar Fallback
+**Learning:** Extracting lanes from a SIMD register (via `_mm256_storeu_ps` to array) and doing a scalar reduction adds unnecessary latency. An in-register reduction via shuffles (`_mm_max_ps`, `_mm_add_ps` along with `_mm_movehl_ps` and `_mm_shuffle_ps`) scales much better, especially when combining it with multiple accumulators.
+**Evidence:** Throughput improved, and it removed explicit scalar loop fallback code.
+**Action:** Use `hmax256_ps` and `hsum256_ps` wrappers utilizing `_mm256_castps256_ps128` and `_mm256_extractf128_ps` whenever cross-lane summation/max is required.
