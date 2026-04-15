@@ -4,7 +4,50 @@
 #include <cmath>
 
 #include "ml_kernels/naive_ops.h"
-#include "ml_kernels/naive_ops.h"
+#include "ml_kernels/softmax.h"
+
+void test_softmax() {
+    std::cout << "Running test_softmax..." << std::endl;
+
+    auto run_test_case = [](const std::vector<float>& input) {
+        std::vector<float> expected(input.size());
+        std::vector<float> out_v2(input.size(), -1.0f);
+        std::vector<float> out_v3(input.size(), -1.0f);
+
+        ml_kernels::softmax_naive(input.data(), expected.data(), input.size());
+        ml_kernels::softmax_v2(input.data(), out_v2.data(), input.size());
+        ml_kernels::softmax_v3(input.data(), out_v3.data(), input.size());
+
+        for (size_t i = 0; i < expected.size(); ++i) {
+            assert(std::fabs(out_v2[i] - expected[i]) < 1e-5f);
+            assert(std::fabs(out_v3[i] - expected[i]) < 1e-5f);
+        }
+    };
+
+    // Test 1: Standard
+    run_test_case({-1.0f, 0.0f, 1.0f, 2.0f, 3.0f});
+
+    // Test 2: Negative
+    run_test_case({-5.0f, -10.0f, -1.0f});
+
+    // Test 3: Large Values
+    run_test_case({100.0f, 101.0f, 99.0f});
+
+    // Test 4: Small Size (less than unroll factor)
+    run_test_case({1.0f, 2.0f});
+
+    // Test 5: Exact Multiple of 32
+    std::vector<float> large_input(64);
+    for (int i = 0; i < 64; ++i) large_input[i] = static_cast<float>(i % 10);
+    run_test_case(large_input);
+
+    // Test 6: Not a multiple of 32
+    std::vector<float> large_input2(70);
+    for (int i = 0; i < 70; ++i) large_input2[i] = static_cast<float>(i % 10);
+    run_test_case(large_input2);
+
+    std::cout << "test_softmax passed!" << std::endl;
+}
 
 void test_max_naive() {
     // Happy path
@@ -94,5 +137,6 @@ void test_relu_naive() {
 int main() {
     test_relu_naive();
     test_max_naive();
+    test_softmax();
     std::cout << "All tests passed successfully!" << std::endl;
 }
