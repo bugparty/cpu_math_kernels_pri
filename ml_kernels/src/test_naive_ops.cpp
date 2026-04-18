@@ -5,6 +5,7 @@
 
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/naive_ops.h"
+#include "ml_kernels/softmax.h"
 
 void test_max_naive() {
     // Happy path
@@ -91,8 +92,39 @@ void test_relu_naive() {
     std::cout << "test_relu_naive passed!" << std::endl;
 }
 
+void test_softmax_v3() {
+    std::cout << "Running test_softmax_v3..." << std::endl;
+    std::vector<float> input = {
+        -2.0f, -0.5f, 1.0f, 3.0f,
+        0.0f, 0.0f, 0.0f, 0.0f,
+        100.0f, 100.0f, -100.0f, -100.0f,
+        5.0f, -5.0f, 2.0f, -2.0f,
+        0.5f, 0.5f, 0.5f, 0.5f,
+        -1.0f, -2.0f, -3.0f, -4.0f,
+        10.0f, 9.0f, 8.0f, 7.0f,
+        -0.1f, -0.2f, -0.3f, -0.4f,
+        1.1f, 2.2f, 3.3f, 4.4f,
+        -1.1f, -2.2f, -3.3f, -4.4f
+    };
+    std::vector<float> output_naive(input.size());
+    std::vector<float> output_v3(input.size());
+
+    ml_kernels::softmax_naive(input.data(), output_naive.data(), input.size());
+    ml_kernels::softmax_v3(input.data(), output_v3.data(), input.size());
+
+    float sum = 0.0f;
+    for (size_t i = 0; i < input.size(); ++i) {
+        assert(std::fabs(output_naive[i] - output_v3[i]) < 1e-4f);
+        sum += output_v3[i];
+    }
+    assert(std::fabs(sum - 1.0f) < 1e-4f);
+
+    std::cout << "test_softmax_v3 passed!" << std::endl;
+}
+
 int main() {
     test_relu_naive();
     test_max_naive();
+    test_softmax_v3();
     std::cout << "All tests passed successfully!" << std::endl;
 }
