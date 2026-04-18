@@ -274,9 +274,9 @@ REGISTER_BENCHMARK(SoftmaxBenchmark);
 
 class SoftmaxV2Benchmark : public SoftmaxBenchmark {
 public:
-    const char *name() const override { return "softmax_v2"; }
+    const char *name() const override { return "softmax_v4"; }
     void run() override {
-        ml_kernels::softmax_v2(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        ml_kernels::softmax_v4(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
         current_idx_ = (current_idx_ + 1) % pool_size_;
     }
 };

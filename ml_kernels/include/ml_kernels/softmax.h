@@ -118,7 +118,7 @@ inline __m256 exp256_ps(__m256 x) {
 // Target: AVX2 (Haswell+)
 // Reason: Replaces scalar pass with fully vectorized max, exp, and inverse-sum normalization. Unrolls loop 4x to hide FMA latency in exp calculation.
 // Expected gain: ~4-5x throughput on large inputs by avoiding scalar math and div latency, and up to ~20-30% beyond that from 4x loop unrolling.
-inline void softmax_v2(const float *input, float *output, std::size_t n) {
+inline void softmax_v4(const float *input, float *output, std::size_t n) {
     if (n == 0) return;
 
     // 1. Find max
