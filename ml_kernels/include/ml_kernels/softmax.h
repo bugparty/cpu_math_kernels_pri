@@ -26,12 +26,17 @@ inline __m256 exp256_ps(__m256 x) {
     __m256 c4 = _mm256_set1_ps(1.0f / 24.0f);
     __m256 c5 = _mm256_set1_ps(1.0f / 120.0f);
 
-    __m256 p = c5;
-    p = _mm256_fmadd_ps(p, r, c4);
-    p = _mm256_fmadd_ps(p, r, c3);
-    p = _mm256_fmadd_ps(p, r, c2);
-    p = _mm256_fmadd_ps(p, r, c1);
-    p = _mm256_fmadd_ps(p, r, c1);
+    // ⚡ Thunderbolt: break dependency chain using Estrin's scheme instead of Horner's method
+    __m256 p01 = _mm256_fmadd_ps(c1, r, c1);
+    __m256 p23 = _mm256_fmadd_ps(c3, r, c2);
+    __m256 p45 = _mm256_fmadd_ps(c5, r, c4);
+
+    __m256 r2 = _mm256_mul_ps(r, r);
+
+    __m256 p03 = _mm256_fmadd_ps(p23, r2, p01);
+
+    __m256 r4 = _mm256_mul_ps(r2, r2);
+    __m256 p = _mm256_fmadd_ps(p45, r4, p03);
 
     __m256i n_int = _mm256_cvtps_epi32(n);
     __m256i exp_shift = _mm256_add_epi32(n_int, _mm256_set1_epi32(127));
