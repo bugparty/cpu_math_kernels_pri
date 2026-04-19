@@ -372,7 +372,7 @@ std::vector<int> parse_sizes(const std::string &s) {
 
 int main(int argc, char **argv) {
     std::string filter;
-    std::string sizes_str = "16384,65536,262144,1048576";
+    std::string sizes_str = "1638400,6553600,26214400,104857600";
     int iters = 20000;
     int warmup = 20;
 
