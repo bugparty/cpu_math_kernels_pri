@@ -170,7 +170,7 @@ static void kernel_Avx512_S4_v2(double *C, const double *A, const double *B,
     }
 }
 
-void dgemm7_v2(double *C,double *A,double *B,int n)
+extern "C" void dgemm7_v2(double *C,double *A,double *B,int n)
 {
     for (int block_i = 0; block_i < n; block_i += BLOCK_SIZE)
     {
