@@ -1,21 +1,10 @@
+#include <cassert>
 #include <cmath>
-#include <cstdlib>
 #include <iostream>
-#include <numeric>
 #include <vector>
+#include <numeric>
 
 #include "ml_kernels/naive_ops.h"
-
-namespace {
-void check_near(const char* label, float actual, float expected, float tol)
-{
-    if (std::abs(actual - expected) >= tol) {
-        std::cerr << "Check failed for " << label << ": actual=" << actual
-                  << ", expected=" << expected << ", tol=" << tol << std::endl;
-        std::exit(1);
-    }
-}
-}
 
 void test_softmax_naive_basic() {
     std::vector<float> input = {1.0f, 2.0f, 3.0f};
@@ -35,10 +24,22 @@ void test_softmax_naive_basic() {
         sum += val;
     }
 
-    check_near("sum", sum, 1.0f, 1e-5f);
-    check_near("output[0]", output[0], expected_0, 1e-5f);
-    check_near("output[1]", output[1], expected_1, 1e-5f);
-    check_near("output[2]", output[2], expected_2, 1e-5f);
+    if (std::abs(sum - 1.0f) >= 1e-5f) {
+        std::cerr << "test_softmax_naive_basic failed: sum " << sum << " != 1.0f (tol: 1e-5f)\n";
+        std::exit(1);
+    }
+    if (std::abs(output[0] - expected_0) >= 1e-5f) {
+        std::cerr << "test_softmax_naive_basic failed: output[0] " << output[0] << " != " << expected_0 << " (tol: 1e-5f)\n";
+        std::exit(1);
+    }
+    if (std::abs(output[1] - expected_1) >= 1e-5f) {
+        std::cerr << "test_softmax_naive_basic failed: output[1] " << output[1] << " != " << expected_1 << " (tol: 1e-5f)\n";
+        std::exit(1);
+    }
+    if (std::abs(output[2] - expected_2) >= 1e-5f) {
+        std::cerr << "test_softmax_naive_basic failed: output[2] " << output[2] << " != " << expected_2 << " (tol: 1e-5f)\n";
+        std::exit(1);
+    }
 }
 
 void test_softmax_naive_empty() {
@@ -61,10 +62,23 @@ void test_softmax_naive_negative() {
     }
 
     // Since they are equal, each should be 1/3
-    check_near("sum", sum, 1.0f, 1e-5f);
-    check_near("output[0]", output[0], (1.0f / 3.0f), 1e-5f);
-    check_near("output[1]", output[1], (1.0f / 3.0f), 1e-5f);
-    check_near("output[2]", output[2], (1.0f / 3.0f), 1e-5f);
+    if (std::abs(sum - 1.0f) >= 1e-5f) {
+        std::cerr << "test_softmax_naive_negative failed: sum " << sum << " != 1.0f (tol: 1e-5f)\n";
+        std::exit(1);
+    }
+    float expected = 1.0f / 3.0f;
+    if (std::abs(output[0] - expected) >= 1e-5f) {
+        std::cerr << "test_softmax_naive_negative failed: output[0] " << output[0] << " != " << expected << " (tol: 1e-5f)\n";
+        std::exit(1);
+    }
+    if (std::abs(output[1] - expected) >= 1e-5f) {
+        std::cerr << "test_softmax_naive_negative failed: output[1] " << output[1] << " != " << expected << " (tol: 1e-5f)\n";
+        std::exit(1);
+    }
+    if (std::abs(output[2] - expected) >= 1e-5f) {
+        std::cerr << "test_softmax_naive_negative failed: output[2] " << output[2] << " != " << expected << " (tol: 1e-5f)\n";
+        std::exit(1);
+    }
 }
 
 int main() {

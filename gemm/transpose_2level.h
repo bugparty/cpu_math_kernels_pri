@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdint>
 #include "../include/compiler_compat.h"
-#include "transpose_avx512.h"
 
 // Forward declarations of micro-kernels to avoid "not declared in this scope" errors in template functions
 static inline void transpose8x8_f64_nt_avx2_pf(const double *src, std::ptrdiff_t src_ld, double *dst, std::ptrdiff_t dst_ld);
@@ -1350,7 +1349,7 @@ inline void transpose_2level_tuned_avx512(const double* __restrict__ A,
                     for (; ii + 8 <= l1_ti_end; ii += 8) {
                         int jj = l1_tj;
                         for (; jj + 8 <= l1_tj_end; jj += 8) {
-                            transpose_8x8_kernel(A + ii * n + jj, AT + jj * n + ii, n, n);
+                            transpose_8x8_kernel_2level(A + ii * n + jj, AT + jj * n + ii, n, n);
                         }
 
                         for (; jj < l1_tj_end; ++jj) {

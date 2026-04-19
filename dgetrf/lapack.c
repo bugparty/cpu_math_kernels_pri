@@ -15,7 +15,6 @@ void lapack_f(double *A,double *B,int n)
     }
     cblas_dtrsv(CblasRowMajor,CblasLower,CblasNoTrans,CblasUnit,n,A,n,B,1);
     cblas_dtrsv(CblasRowMajor,CblasUpper,CblasNoTrans,CblasNonUnit,n,A,n,B,1);
-    free(ipiv);
 }
 
 #endif

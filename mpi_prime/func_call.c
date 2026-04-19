@@ -15,7 +15,7 @@ void func_call(unsigned long long *global_count,double *time,char *func_name,uns
     if (strcmp(func_name,"sieve1")==0)
     {
         *time=-MPI_Wtime();
-        sieve1((uint64_t *)global_count,n,pnum,pid);
+        sieve1(global_count,n,pnum,pid);
         *time+=MPI_Wtime();
         return; 
     }
