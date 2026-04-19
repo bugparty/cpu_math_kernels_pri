@@ -11,8 +11,16 @@ int main(int argc,char **argv)
     char *func_name=argv[1];
     int n=atoi(argv[2]);
     FILE *pad_file=fopen("pad.txt","r");
+    if (pad_file == NULL) {
+        printf("Can't open pad.txt\n");
+        return 1;
+    }
     int pad;
-    if (fscanf(pad_file,"%d",&pad) != 1) { printf("Failed to read pad\n"); exit(1); }
+    if (fscanf(pad_file,"%d",&pad) != 1) {
+        printf("Error reading pad\n");
+        fclose(pad_file);
+        return 1;
+    }
     fclose(pad_file);
     n=((n+pad-1)/pad)*pad;
     printf("n=%d, pad=%d\n",n,pad);

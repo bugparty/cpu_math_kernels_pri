@@ -77,7 +77,7 @@ jobs:
         elif [ "${{ matrix.target }}" = "dgetrf" ]; then
           ./build/dgetrf/dgetrf_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/dgetrf_bench_all.log
         elif [ "${{ matrix.target }}" = "ml_kernels" ]; then
-          ./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/ml_kernel_bench.log
+          ./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 1638400,6553600,26214400,104857600 > benchmark_results/ml_kernel_bench.log
         fi
       timeout-minutes: 120
       continue-on-error: true
@@ -137,5 +137,5 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "./build/gemm/gemm_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
           echo "./build/dgetrf/dgetrf_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
-          echo "./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
+          echo "./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 1638400,6553600,26214400,104857600" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
