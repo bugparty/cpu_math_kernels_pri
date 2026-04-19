@@ -24,15 +24,27 @@ int main(int argc,char **argv)
     char *func_name=argv[1];
     int n=atoi(argv[2]);
     FILE *pad_file=fopen("pad.txt","r");
+    if (pad_file == NULL) {
+        printf("Can't open pad.txt\n");
+        return 1;
+    }
     int pad;
-    fscanf(pad_file,"%d",&pad);
+    if (fscanf(pad_file,"%d",&pad) != 1) {
+        printf("Error reading pad\n");
+        fclose(pad_file);
+        return 1;
+    }
     fclose(pad_file);
     FILE *file = fopen("matrix2.txt", "r");
     if (file == NULL) {
         printf("Can't open file\n");
         return 1;
     }
-    fscanf(file, "%d", &n);
+    if (fscanf(file, "%d", &n) != 1) {
+        printf("Error reading n\n");
+        fclose(file);
+        return 1;
+    }
     n=((n+pad-1)/pad)*pad;
     printf("n=%d, pad=%d\n",n,pad);
     size_t alignment = 32;
@@ -43,12 +55,20 @@ int main(int argc,char **argv)
 
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            fscanf(file, "%lf", &A[i*n+j]);
+            if (fscanf(file, "%lf", &A[i*n+j]) != 1) {
+                printf("Error reading A[%d][%d]\n", i, j);
+                fclose(file);
+                return 1;
+            }
         }
     }
     printM(A,n,n);
     for (int i = 0; i < n; i++) {
-        fscanf(file, "%lf", &B[i]);
+        if (fscanf(file, "%lf", &B[i]) != 1) {
+            printf("Error reading B[%d]\n", i);
+            fclose(file);
+            return 1;
+        }
     }
 
 
