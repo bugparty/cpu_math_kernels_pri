@@ -36,11 +36,17 @@ void dgemm7_ikj2(double *C,double *A,double *B,int n)
 
 #include <immintrin.h>
 
+#if defined(__clang__) || defined(__GNUC__)
+#define DGEMM7_AVX2_FMA_TARGET __attribute__((target("avx2,fma")))
+#else
+#define DGEMM7_AVX2_FMA_TARGET
+#endif
+
 // ⚡ Thunderbolt: AVX2 Register-blocked (4x8) Tiled IKJ DGEMM
 // Target: AVX2 (Haswell+)
 // Reason: Original inner loop was memory-bound. Tiling ensures L1/L2 residency, while 4x8 register blocking plus unrolling the K-loop by 4 maximizes the compute-to-memory ratio and hides FMA latency.
 // Expected gain: ~4x throughput improvement (from ~4 GFLOPS to ~16+ GFLOPS)
-__attribute__((target("avx2,fma")))
+DGEMM7_AVX2_FMA_TARGET
 void dgemm7_ikj_v2(double *C, double *A, double *B, int n)
 {
     int i, j, k;
