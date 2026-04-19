@@ -22,6 +22,8 @@ if(BUILD_HW1)
     add_subdirectory(gemm)
 endif()
 
+enable_testing()
+
 if(BUILD_HW2)
     add_subdirectory(dgetrf)
 endif()

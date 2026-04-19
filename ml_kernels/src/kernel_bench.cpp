@@ -5,6 +5,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <cstdlib>
 
 #ifdef __linux__
 #include <sched.h>
@@ -14,6 +15,7 @@
 #include "benchmark.h"
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/relu.h"
+#include "ml_kernels/softmax.h"
 
 namespace {
 
@@ -21,6 +23,12 @@ static bool g_use_pool = true;
 
 #ifdef __linux__
 void bind_default_benchmark_cpus() {
+    const char* disable_binding = std::getenv("DISABLE_CPU_BINDING");
+    if (disable_binding && std::string(disable_binding) == "1") {
+        std::cout << "CPU binding disabled by DISABLE_CPU_BINDING environment variable." << std::endl;
+        return;
+    }
+
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(10, &set);
@@ -29,12 +37,11 @@ void bind_default_benchmark_cpus() {
     CPU_SET(13, &set);
 
     if (sched_setaffinity(0, sizeof(set), &set) != 0) {
-        std::cerr << "Failed to bind benchmark to CPUs 10,11,12,13: "
-                  << std::strerror(errno) << std::endl;
-        std::exit(2);
+        std::cerr << "Warning: Failed to bind benchmark to CPUs 10,11,12,13: "
+                  << std::strerror(errno) << ". Proceeding without CPU binding." << std::endl;
+    } else {
+        std::cout << "cpu_affinity=10,11,12,13" << std::endl;
     }
-
-    std::cout << "cpu_affinity=10,11,12,13" << std::endl;
 }
 #else
 void bind_default_benchmark_cpus() {}
@@ -99,7 +106,7 @@ public:
 
     double flops(int n) const override { return static_cast<double>(n); }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     std::vector<AlignedBuffer<float>> outputs_;
     AlignedBuffer<float> output_ref_;
@@ -178,7 +185,7 @@ public:
 
     double flops(int n) const override { return static_cast<double>(n); }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     float result_ = 0.0f;
     float result_ref_ = 0.0f;
@@ -254,7 +261,7 @@ public:
 
     double flops(int n) const override { return 4.0 * n; }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     std::vector<AlignedBuffer<float>> outputs_;
     AlignedBuffer<float> output_ref_;
@@ -262,8 +269,18 @@ private:
     std::size_t current_idx_ = 0;
 };
 
-// REGISTER_BENCHMARK(MaxBenchmark);
-// REGISTER_BENCHMARK(SoftmaxBenchmark);
+REGISTER_BENCHMARK(MaxBenchmark);
+REGISTER_BENCHMARK(SoftmaxBenchmark);
+
+class SoftmaxV2Benchmark : public SoftmaxBenchmark {
+public:
+    const char *name() const override { return "softmax_v2"; }
+    void run() override {
+        ml_kernels::softmax_v2(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        current_idx_ = (current_idx_ + 1) % pool_size_;
+    }
+};
+REGISTER_BENCHMARK(SoftmaxV2Benchmark);
 std::vector<int> parse_sizes(const std::string &s) {
     std::vector<int> out;
     std::stringstream ss(s);
@@ -276,6 +293,17 @@ std::vector<int> parse_sizes(const std::string &s) {
     }
     return out;
 }
+
+class SoftmaxV3Benchmark : public SoftmaxBenchmark {
+public:
+    const char *name() const override { return "softmax_v3"; }
+
+    void run() override {
+        ml_kernels::softmax_v3(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        current_idx_ = (current_idx_ + 1) % pool_size_;
+    }
+};
+REGISTER_BENCHMARK(SoftmaxV3Benchmark);
 
 } // namespace
 
