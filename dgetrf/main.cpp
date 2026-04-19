@@ -16,11 +16,7 @@ int main(int argc,char **argv)
         return 1;
     }
     int pad;
-    if (fscanf(pad_file,"%d",&pad) != 1) {
-        printf("Error reading pad\n");
-        fclose(pad_file);
-        return 1;
-    }
+    if (fscanf(pad_file,"%d",&pad) != 1) { printf("Failed to read pad\n"); fclose(pad_file); exit(1); }
     fclose(pad_file);
     n=((n+pad-1)/pad)*pad;
     printf("n=%d, pad=%d\n",n,pad);

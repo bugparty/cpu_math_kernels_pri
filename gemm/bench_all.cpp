@@ -203,6 +203,7 @@ REGISTER_GEMM     ("dgemm7_raw", dgemm7_raw);
 REGISTER_GEMM     ("dgemm7_ijk", dgemm7_ijk);
 REGISTER_GEMM     ("dgemm7_kij", dgemm7_kij);
 REGISTER_GEMM     ("dgemm7_ikj", dgemm7_ikj);
+REGISTER_GEMM     ("dgemm7_ikj_v2", dgemm7_ikj_v2);
 #if GEMM_HAVE_MKL
 REGISTER_GEMM     ("mkl_dgemm",  dgemm_mkl_wrapper);
 #endif
