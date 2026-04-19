@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include "transpose_2level.h"
+#include "transpose_avx512.h"
+
 
 constexpr int TILE_SIZE = 64;
 
