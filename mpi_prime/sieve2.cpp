@@ -52,7 +52,7 @@ using namespace bowen;
             prime_prime = prime * prime;
         } while (prime_prime <= n);
     }
-void sieve2(uint64_t *global_count, uint64_t n, int pnum, int pid) {
+void sieve2(unsigned long long *global_count, unsigned long long n, int pnum, int pid) {
     const uint64_t low_value = 3 + 2 * floor(pid * ((n - 3) / 2 + 1) / pnum);//the smallest value handled by this process
     const uint64_t high_value =
             3 + 2 * floor((pid + 1) * ((n - 3) / 2 + 1) / pnum) - 2;//the largest value handled by this process

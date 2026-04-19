@@ -6,7 +6,7 @@
 n: the size
 pnum: processor count
 */
-void sieve1(uint64_t *global_count,uint64_t n,int pnum,int pid)
+void sieve1(unsigned long long *global_count,unsigned long long n,int pnum,int pid)
 {
     uint64_t low_value=3+2*floor(pid*((n-3)/2+1)/pnum);//the smallest value handled by this process
     uint64_t high_value=3+2*floor((pid+1)*((n-3)/2+1)/pnum)-2;//the largest value handled by this process

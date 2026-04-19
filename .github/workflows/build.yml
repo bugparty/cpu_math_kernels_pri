@@ -34,7 +34,6 @@ jobs:
           -DBUILD_HW1=ON \
           -DBUILD_HW2=ON \
           -DBUILD_HW3=ON \
-          -DBUILD_ML_KERNELS=ON \
           -DGEMM_MKL_ROOT=/usr \
           -DMKL_ROOT=/usr
 
@@ -47,8 +46,6 @@ jobs:
         ls -lh build/gemm/gemm_bench_all
         ls -lh build/dgetrf/dgetrf_bench_all
         ls -lh build/mpi_prime/hw3_main
-        ls -lh build/ml_kernels/ml_kernel_smoke
-        ls -lh build/ml_kernels/ml_kernel_bench
 
     - name: Upload build artifacts
       if: always()
@@ -63,6 +60,4 @@ jobs:
           build/dgetrf/hw2_test1
           build/dgetrf/dgetrf_bench_all
           build/mpi_prime/hw3_main
-          build/ml_kernels/ml_kernel_smoke
-          build/ml_kernels/ml_kernel_bench
         retention-days: 7
