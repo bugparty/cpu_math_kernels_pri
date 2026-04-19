@@ -19,3 +19,5 @@
 #include "dgemm6_kij.c"
 #include "dgemm6_kji.c"
 #include "dgemm7.c"
+#include "dgemm7_ikj.c"
+#include "dgemm7_ikj_v2.c"
