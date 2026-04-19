@@ -11,13 +11,6 @@ add_executable(ml_kernel_smoke
 
 target_include_directories(ml_kernel_smoke PRIVATE include)
 
-add_executable(ml_kernel_test
-    src/naive_ops.cpp
-    src/test_naive_ops.cpp
-)
-
-target_include_directories(ml_kernel_test PRIVATE include)
-
 add_executable(ml_kernel_bench
     src/naive_ops.cpp
     src/kernel_bench.cpp
@@ -26,21 +19,22 @@ add_executable(ml_kernel_bench
 
 target_include_directories(ml_kernel_bench PRIVATE include ${CMAKE_SOURCE_DIR}/include)
 
-add_executable(ml_kernel_test_naive_ops
+add_executable(ml_kernel_test
     src/naive_ops.cpp
-    src/test_naive_ops.cpp
+    src/kernel_test.cpp
 )
 
-target_include_directories(ml_kernel_test_naive_ops PRIVATE include)
+target_include_directories(ml_kernel_test PRIVATE include)
+
+enable_testing()
+add_test(NAME ml_kernel_test COMMAND ml_kernel_test)
 
 if(MSVC)
     target_compile_options(ml_kernel_smoke PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
     target_compile_options(ml_kernel_bench PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
     target_compile_options(ml_kernel_test PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
-    target_compile_options(ml_kernel_test_naive_ops PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
 else()
     target_compile_options(ml_kernel_smoke PRIVATE -O3 -march=native)
     target_compile_options(ml_kernel_bench PRIVATE -O3 -march=native)
     target_compile_options(ml_kernel_test PRIVATE -O3 -march=native)
-    target_compile_options(ml_kernel_test_naive_ops PRIVATE -O3 -march=native)
 endif()
