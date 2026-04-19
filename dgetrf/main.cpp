@@ -12,7 +12,7 @@ int main(int argc,char **argv)
     int n=atoi(argv[2]);
     FILE *pad_file=fopen("pad.txt","r");
     int pad;
-    if (fscanf(pad_file,"%d",&pad) != 1) { printf("Failed to read pad\n"); exit(1); }
+    fscanf(pad_file,"%d",&pad);
     fclose(pad_file);
     n=((n+pad-1)/pad)*pad;
     printf("n=%d, pad=%d\n",n,pad);

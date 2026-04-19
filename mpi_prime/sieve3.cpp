@@ -9,7 +9,6 @@ using namespace bowen;
 #include "include.h"
 #include <xmmintrin.h>
 #include <emmintrin.h>
-//#include <immintrin.h>
 #pragma GCC target("popcnt")
 static void calPrePrimes(vector<uint64_t> & primes, const uint64_t high_value,
                        const uint64_t n){
