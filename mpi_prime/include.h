@@ -13,9 +13,9 @@ extern "C" {
 
 void sieve0(unsigned long long *global_count, unsigned long long n, int pnum, int pid);
 
-void sieve1(unsigned long long *global_count, unsigned long long n, int pnum, int pid);
+void sieve1(uint64_t *global_count, uint64_t n, int pnum, int pid);
 
-void sieve2(unsigned long long *global_count, unsigned long long n, int pnum, int pid);
+void sieve2(uint64_t *global_count, uint64_t n, int pnum, int pid);
 
 void sieve3(unsigned long long *global_count, unsigned long long n, int pnum, int pid);
 

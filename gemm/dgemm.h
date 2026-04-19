@@ -22,7 +22,6 @@ extern "C" {
     void dgemm7_ijk(double *C,double *A,double *B,int n);
     void dgemm7_kij(double *C,double *A,double *B,int n);
     void dgemm7_ikj(double *C,double *A,double *B,int n);
-    void dgemm7_ikj_v2(double *C,double *A,double *B,int n);
 #ifdef __AVX512F__
     void dgemm7(double *C,double *A,double *B,int n);
     void dgemm7_v2(double *C,double *A,double *B,int n);

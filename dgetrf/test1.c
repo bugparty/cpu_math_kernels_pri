@@ -25,14 +25,14 @@ int main(int argc,char **argv)
     int n=atoi(argv[2]);
     FILE *pad_file=fopen("pad.txt","r");
     int pad;
-    if (fscanf(pad_file,"%d",&pad) != 1) { printf("Failed to read pad\n"); exit(1); }
+    fscanf(pad_file,"%d",&pad);
     fclose(pad_file);
     FILE *file = fopen("matrix2.txt", "r");
     if (file == NULL) {
         printf("Can't open file\n");
         return 1;
     }
-    if (fscanf(file, "%d", &n) != 1) { printf("Failed to read n\n"); exit(1); }
+    fscanf(file, "%d", &n);
     n=((n+pad-1)/pad)*pad;
     printf("n=%d, pad=%d\n",n,pad);
     size_t alignment = 32;
@@ -43,12 +43,12 @@ int main(int argc,char **argv)
 
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            if (fscanf(file, "%lf", &A[i*n+j]) != 1) { printf("Failed to read A\n"); exit(1); }
+            fscanf(file, "%lf", &A[i*n+j]);
         }
     }
     printM(A,n,n);
     for (int i = 0; i < n; i++) {
-        if (fscanf(file, "%lf", &B[i]) != 1) { printf("Failed to read B\n"); exit(1); }
+        fscanf(file, "%lf", &B[i]);
     }
 
 
