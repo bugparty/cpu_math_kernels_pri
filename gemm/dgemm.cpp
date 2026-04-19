@@ -606,8 +606,6 @@ void dgemm7(double *C,double *A,double *B,int n)
 void dgemm7(double *C,double *A,double *B,int n) { (void)C; (void)A; (void)B; (void)n; }
 #endif // __AVX512F__
 
-} // extern "C"
-
-
-
 #include "dgemm7_ikj.c"
+
+} // extern "C"
