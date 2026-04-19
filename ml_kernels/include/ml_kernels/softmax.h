@@ -118,7 +118,7 @@ inline float hsum256_ps(__m256 x) {
 // Target: AVX2 (Haswell+)
 // Reason: Replaces scalar extraction with in-register tree reduction and unrolls the main loops 4x to hide latency and increase ILP.
 // Expected gain: ~25-50% throughput improvement over softmax_v2 due to better FMA latency hiding and fewer scalar/SIMD transitions.
-inline void softmax_v3(const float *input, float *output, std::size_t n) {
+inline void softmax_v3_unroll4(const float *input, float *output, std::size_t n) {
     if (n == 0) return;
 
     std::size_t i = 0;
