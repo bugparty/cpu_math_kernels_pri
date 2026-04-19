@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include "../include/compiler_compat.h"
+#include "transpose_avx512.h"
 
 // Forward declarations of micro-kernels to avoid "not declared in this scope" errors in template functions
 static inline void transpose8x8_f64_nt_avx2_pf(const double *src, std::ptrdiff_t src_ld, double *dst, std::ptrdiff_t dst_ld);
@@ -14,6 +15,9 @@ static inline void transpose8x8_f64_pf_avx2(const double *src, std::ptrdiff_t sr
 static inline void transpose8x8_f64_nt_avx2_pf_v2(const double *src, double *dst, ptrdiff_t src_stride, ptrdiff_t dst_stride);
 static inline void transpose8x8_f64_nt_avx2_pf_v5(const double *src, std::ptrdiff_t src_ld, double *dst, std::ptrdiff_t dst_ld);
 static inline void transpose8x8_f64_nt_avx2_pf_v3(const double *src, std::ptrdiff_t src_ld, double *dst, std::ptrdiff_t dst_ld);
+#ifdef __AVX512F__
+static inline void transpose_8x8_kernel(const double* __restrict__ src, double* __restrict__ dst, int src_stride, int dst_stride);
+#endif
 
 /**
  * Two-level hierarchical tiling matrix transpose.

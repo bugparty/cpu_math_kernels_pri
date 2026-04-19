@@ -305,7 +305,7 @@ void dgemm7_kij(double *C,double *A,double *B,int n)
                 kernel_R4x4(C,A,B,n,i,j,k);
             }
 }
-void dgemm7_ikj_unused(double *C,double *A,double *B,int n)
+void dgemm7_ikj(double *C,double *A,double *B,int n)
 {
     int i, j, k;
     for (i = 0; i < n; i += BLOCK_SIZE)
@@ -605,7 +605,5 @@ void dgemm7(double *C,double *A,double *B,int n)
 #else
 void dgemm7(double *C,double *A,double *B,int n) { (void)C; (void)A; (void)B; (void)n; }
 #endif // __AVX512F__
-
-#include "dgemm7_ikj.c"
 
 } // extern "C"

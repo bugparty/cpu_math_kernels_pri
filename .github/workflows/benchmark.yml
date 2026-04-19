@@ -1,19 +1,15 @@
-name: Benchmarks
+name: GEMM Benchmarks
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [gemm, dgetrf, ml_kernels]
     
     steps:
     - name: Checkout code
@@ -22,120 +18,81 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        sudo apt-get install -y \
           build-essential \
           cmake \
           libopenmpi-dev \
           openmpi-bin \
           libopenblas-dev \
           liblapack-dev \
-          liblapacke-dev \
-          intel-mkl
+          liblapacke-dev
     
     - name: Configure CMake
       run: |
-        echo "CPU Information:"
-        cat /proc/cpuinfo | grep 'model name' | uniq
-        echo "Supported instruction sets (AVX2/AVX512):"
-        cat /proc/cpuinfo | grep -E 'avx2|avx512' | uniq
         mkdir -p build
         cd build
-
-        if cat /proc/cpuinfo | grep -q avx512; then
-            echo "AVX512 is supported. Using AVX512 flags."
-            ARCH_FLAGS="-mavx512f;-mavx512dq;-mavx512vl;-mfma"
-        else
-            echo "AVX512 is NOT supported. Using AVX2 flags."
-            ARCH_FLAGS="-mavx2;-mfma"
-        fi
-
-        cmake .. \
-          -DBUILD_HW1=ON \
-          -DBUILD_HW2=ON \
-          -DBUILD_HW3=OFF \
-          -DBUILD_ML_KERNELS=ON \
-          "-DARCH_FLAGS=${ARCH_FLAGS}" \
-          -DGEMM_MKL_ROOT=/usr
+        cmake .. -DBUILD_HW1=ON -DBUILD_HW2=OFF -DBUILD_HW3=OFF
     
     - name: Build project
       run: |
         cd build
-        if [ "${{ matrix.target }}" = "gemm" ]; then
-          make gemm_bench_all -j$(nproc)
-        elif [ "${{ matrix.target }}" = "dgetrf" ]; then
-          make dgetrf_bench_all -j$(nproc)
-        elif [ "${{ matrix.target }}" = "ml_kernels" ]; then
-          make ml_kernel_bench -j$(nproc)
-        fi
+        make gemm_bench -j$(nproc)
+
+    - name: Verify build
+      run: |
+        ls -lh build/gemm/gemm_bench
+        ./build/gemm/gemm_bench --count
     
     - name: Run benchmarks
       run: |
+        cd gemm
         mkdir -p benchmark_results
-        export DISABLE_CPU_BINDING=1
-        if [ "${{ matrix.target }}" = "gemm" ]; then
-          ./build/gemm/gemm_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/gemm_bench_all.log
-        elif [ "${{ matrix.target }}" = "dgetrf" ]; then
-          ./build/dgetrf/dgetrf_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920 > benchmark_results/dgetrf_bench_all.log
-        elif [ "${{ matrix.target }}" = "ml_kernels" ]; then
-          ./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 1638400,6553600,26214400,104857600 > benchmark_results/ml_kernel_bench.log
+        ./run_all_benchmarks.sh benchmark_results
+      timeout-minutes: 120  # 2 hours max
+      continue-on-error: true  # Don't fail if benchmark times out
+
+    - name: Generate CSV results
+      if: always()
+      run: |
+        cd gemm
+        ./quick_bench.sh benchmark_results.csv || true
+
+    - name: Create summary
+      if: always()
+      run: |
+        cd gemm
+        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ -f benchmark_results.csv ]; then
+          echo "### Performance Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -20 benchmark_results.csv | column -t -s, >> $GITHUB_STEP_SUMMARY || cat benchmark_results.csv | head -20 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
         fi
-      timeout-minutes: 120
-      continue-on-error: true
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Available Kernels" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        ../build/gemm/gemm_bench 2>&1 | grep -A 20 "Please select" || echo "Could not list kernels"
+        echo '```' >> $GITHUB_STEP_SUMMARY
     
     - name: Upload benchmark results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: benchmark-results-${{ matrix.target }}
-        path: benchmark_results/
+        name: benchmark-results
+        path: |
+          gemm/benchmark_results/
+          gemm/benchmark_results.csv
         retention-days: 30
 
-  summary:
-    needs: benchmark
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Download all benchmark results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: benchmark-results-*
-          merge-multiple: true
-          path: benchmark_results
-
-      - name: Create summary
-        run: |
-          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ -f benchmark_results/gemm_bench_all.log ]; then
-            echo "### GEMM Performance Summary" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            head -120 benchmark_results/gemm_bench_all.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ -f benchmark_results/dgetrf_bench_all.log ]; then
-            echo "### DGETRF Performance Summary" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            head -120 benchmark_results/dgetrf_bench_all.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ -f benchmark_results/ml_kernel_bench.log ]; then
-            echo "### ML Kernels Performance Summary" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            head -120 benchmark_results/ml_kernel_bench.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Benchmark Commands" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "./build/gemm/gemm_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
-          echo "./build/dgetrf/dgetrf_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
-          echo "./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 1638400,6553600,26214400,104857600" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+    - name: Upload build artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: gemm-bench-executable
+        path: build/gemm/gemm_bench
+        retention-days: 7

@@ -18,11 +18,11 @@ option(BUILD_HW2 "Build hw2 large linear system solvers" ON)
 option(BUILD_HW3 "Build hw3 sieve of Eratosthenes" OFF)
 option(BUILD_ML_KERNELS "Build experimental ML kernels workspace" ON)
 
-include(CTest)
-
 if(BUILD_HW1)
     add_subdirectory(gemm)
 endif()
+
+enable_testing()
 
 if(BUILD_HW2)
     add_subdirectory(dgetrf)

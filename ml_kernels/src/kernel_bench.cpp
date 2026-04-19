@@ -5,6 +5,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <cstdlib>
 
 #ifdef __linux__
 #include <sched.h>
@@ -13,8 +14,8 @@
 #include "aligned_buffer.h"
 #include "benchmark.h"
 #include "ml_kernels/naive_ops.h"
-#include "ml_kernels/softmax.h"
 #include "ml_kernels/relu.h"
+#include "ml_kernels/softmax.h"
 
 namespace {
 
@@ -22,10 +23,12 @@ static bool g_use_pool = true;
 
 #ifdef __linux__
 void bind_default_benchmark_cpus() {
-    if (std::getenv("DISABLE_CPU_BINDING")) {
-        std::cout << "CPU binding disabled via DISABLE_CPU_BINDING environment variable." << std::endl;
+    const char* disable_binding = std::getenv("DISABLE_CPU_BINDING");
+    if (disable_binding && std::string(disable_binding) == "1") {
+        std::cout << "CPU binding disabled by DISABLE_CPU_BINDING environment variable." << std::endl;
         return;
     }
+
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET(10, &set);
@@ -34,12 +37,11 @@ void bind_default_benchmark_cpus() {
     CPU_SET(13, &set);
 
     if (sched_setaffinity(0, sizeof(set), &set) != 0) {
-        std::cerr << "Failed to bind benchmark to CPUs 10,11,12,13: "
-                  << std::strerror(errno) << std::endl;
-        std::exit(2);
+        std::cerr << "Warning: Failed to bind benchmark to CPUs 10,11,12,13: "
+                  << std::strerror(errno) << ". Proceeding without CPU binding." << std::endl;
+    } else {
+        std::cout << "cpu_affinity=10,11,12,13" << std::endl;
     }
-
-    std::cout << "cpu_affinity=10,11,12,13" << std::endl;
 }
 #else
 void bind_default_benchmark_cpus() {}
@@ -104,7 +106,7 @@ public:
 
     double flops(int n) const override { return static_cast<double>(n); }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     std::vector<AlignedBuffer<float>> outputs_;
     AlignedBuffer<float> output_ref_;
@@ -183,7 +185,7 @@ public:
 
     double flops(int n) const override { return static_cast<double>(n); }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     float result_ = 0.0f;
     float result_ref_ = 0.0f;
@@ -259,7 +261,7 @@ public:
 
     double flops(int n) const override { return 4.0 * n; }
 
-private:
+protected:
     std::vector<AlignedBuffer<float>> inputs_;
     std::vector<AlignedBuffer<float>> outputs_;
     AlignedBuffer<float> output_ref_;
@@ -267,94 +269,18 @@ private:
     std::size_t current_idx_ = 0;
 };
 
-// REGISTER_BENCHMARK(MaxBenchmark);
+REGISTER_BENCHMARK(MaxBenchmark);
 REGISTER_BENCHMARK(SoftmaxBenchmark);
 
-template <const char *Name, void (*Kernel)(const float *, float *, std::size_t)>
-class SoftmaxBenchmarkBase : public BenchmarkBase {
+class SoftmaxV2Benchmark : public SoftmaxBenchmark {
 public:
-    const char *name() const override { return Name; }
-
-    void setup(int n) override {
-        size_t bytes_per_iteration = 3ULL * n * sizeof(float);
-        size_t target_pool_bytes = 100ULL * 1024 * 1024;
-        pool_size_ = g_use_pool ? std::max<std::size_t>(1, target_pool_bytes / bytes_per_iteration) : 1;
-
-        inputs_.resize(pool_size_);
-        outputs_.resize(pool_size_);
-        output_ref_.assign(n, 0.0f);
-
-        std::mt19937 rng(12345);
-        std::uniform_real_distribution<float> dist(-4.0f, 4.0f);
-        for (std::size_t i = 0; i < pool_size_; ++i) {
-            inputs_[i].resize(n);
-            outputs_[i].assign(n, 0.0f);
-            for (float &value : inputs_[i]) {
-                value = dist(rng);
-            }
-        }
-
-        if (n == 0) {
-            return;
-        }
-
-        const float max_value = *std::max_element(inputs_[0].begin(), inputs_[0].end());
-        float sum = 0.0f;
-        for (std::size_t i = 0; i < n; ++i) {
-            output_ref_[i] = std::exp(inputs_[0][i] - max_value);
-            sum += output_ref_[i];
-        }
-        for (float &value : output_ref_) {
-            value /= sum;
-        }
-        current_idx_ = 0;
-    }
-
+    const char *name() const override { return "softmax_v2"; }
     void run() override {
-        Kernel(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        ml_kernels::softmax_v2(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
         current_idx_ = (current_idx_ + 1) % pool_size_;
     }
-
-    bool verify() override {
-        current_idx_ = 0;
-        run();
-        constexpr float tol = 1e-5f;
-        for (std::size_t i = 0; i < outputs_[0].size(); ++i) {
-            if (std::fabs(outputs_[0][i] - output_ref_[i]) > tol) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    void teardown() override {
-        inputs_.clear();
-        outputs_.clear();
-        output_ref_.clear();
-    }
-
-    double bytes_accessed(int n) const override {
-        return 2.0 * n * sizeof(float);
-    }
-
-    double flops(int n) const override { return 4.0 * n; }
-
-private:
-    std::vector<AlignedBuffer<float>> inputs_;
-    std::vector<AlignedBuffer<float>> outputs_;
-    AlignedBuffer<float> output_ref_;
-    std::size_t pool_size_ = 1;
-    std::size_t current_idx_ = 0;
 };
-
-#define REGISTER_SOFTMAX_BENCHMARK(KernelFunc) \
-    inline constexpr char k##KernelFunc##Name[] = #KernelFunc; \
-    using KernelFunc##Benchmark = SoftmaxBenchmarkBase<k##KernelFunc##Name, ml_kernels::KernelFunc>; \
-    REGISTER_BENCHMARK(KernelFunc##Benchmark)
-
-// REGISTER_SOFTMAX_BENCHMARK(softmax_v2);
-REGISTER_SOFTMAX_BENCHMARK(softmax_v3);
-
+REGISTER_BENCHMARK(SoftmaxV2Benchmark);
 std::vector<int> parse_sizes(const std::string &s) {
     std::vector<int> out;
     std::stringstream ss(s);
@@ -367,6 +293,17 @@ std::vector<int> parse_sizes(const std::string &s) {
     }
     return out;
 }
+
+class SoftmaxV3Benchmark : public SoftmaxBenchmark {
+public:
+    const char *name() const override { return "softmax_v3"; }
+
+    void run() override {
+        ml_kernels::softmax_v3(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        current_idx_ = (current_idx_ + 1) % pool_size_;
+    }
+};
+REGISTER_BENCHMARK(SoftmaxV3Benchmark);
 
 } // namespace
 
