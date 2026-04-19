@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cmath>
+#include <algorithm>
 #include <immintrin.h>
 
 namespace ml_kernels {
@@ -13,15 +14,6 @@ inline __m256 exp_ps_taylor_avx2(__m256 x) {
     x = _mm256_max_ps(x, _mm256_set1_ps(-87.3f));
     x = _mm256_min_ps(x, _mm256_set1_ps(0.0f));
 
-    // Instead of using just taylor series directly for large negative numbers,
-    // which has huge errors, we should use range reduction.
-    // exp(x) = 2^(x * log2(e))
-    // Let y = x * log2(e)
-    // Let n = round(y)
-    // Let f = y - n
-    // exp(x) = 2^n * 2^f
-    // We approximate 2^f for f in [-0.5, 0.5]
-
     __m256 log2e = _mm256_set1_ps(1.4426950408889634f);
     __m256 y = _mm256_mul_ps(x, log2e);
 
@@ -32,8 +24,6 @@ inline __m256 exp_ps_taylor_avx2(__m256 x) {
     // fractional part
     __m256 f = _mm256_sub_ps(y, n_float);
 
-    // approximate 2^f with a polynomial
-    // 2^f = 1 + f * ln(2) + f^2 * ln(2)^2 / 2 + ...
     __m256 c0 = _mm256_set1_ps(1.0f);
     __m256 c1 = _mm256_set1_ps(0.6931471805599453f);
     __m256 c2 = _mm256_set1_ps(0.2402265069591007f);
@@ -47,23 +37,16 @@ inline __m256 exp_ps_taylor_avx2(__m256 x) {
     poly = _mm256_fmadd_ps(f, poly, c1);
     poly = _mm256_fmadd_ps(f, poly, c0);
 
-    // construct 2^n
-    // float representation of 2^n is (n + 127) << 23
     __m256i bias = _mm256_set1_epi32(127);
     __m256i n_biased = _mm256_add_epi32(n, bias);
     __m256i exp2n = _mm256_slli_epi32(n_biased, 23);
 
-    // result = 2^n * 2^f
     __m256 result = _mm256_mul_ps(_mm256_castsi256_ps(exp2n), poly);
 
     return result;
 }
 
-// ⚡ Thunderbolt: AVX2 vectorized softmax with range-reduced exp approximation
-// Target: AVX2 (Haswell+)
-// Reason: Replaces memory-bound/scalar exp loops with vectorized reductions and a fast 5th-degree Taylor approximation of 2^f, avoiding scalar divisions.
-// Expected gain: ~7.5x throughput on SoftmaxBench (0.57 -> 4.27 GFLOP/s)
-inline void softmax_v3(const float *input, float *output, std::size_t n) {
+inline void softmax_v2(const float *input, float *output, std::size_t n) {
     if (n == 0) return;
 
     // 1. Find max
@@ -155,7 +138,7 @@ inline float hsum256_ps(__m256 x) {
 // Target: AVX2 (Haswell+)
 // Reason: Replaces scalar extraction with in-register tree reduction and unrolls the main loops 4x to hide latency and increase ILP.
 // Expected gain: ~25-50% throughput improvement over softmax_v2 due to better FMA latency hiding and fewer scalar/SIMD transitions.
-inline void softmax_v3_unroll4(const float *input, float *output, std::size_t n) {
+inline void softmax_v3(const float *input, float *output, std::size_t n) {
     if (n == 0) return;
 
     std::size_t i = 0;

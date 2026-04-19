@@ -351,9 +351,8 @@ private:
     using KernelFunc##Benchmark = SoftmaxBenchmarkBase<k##KernelFunc##Name, ml_kernels::KernelFunc>; \
     REGISTER_BENCHMARK(KernelFunc##Benchmark)
 
-// REGISTER_SOFTMAX_BENCHMARK(softmax_v2);
+REGISTER_SOFTMAX_BENCHMARK(softmax_v2);
 REGISTER_SOFTMAX_BENCHMARK(softmax_v3);
-REGISTER_SOFTMAX_BENCHMARK(softmax_v3_unroll4);
 
 std::vector<int> parse_sizes(const std::string &s) {
     std::vector<int> out;
