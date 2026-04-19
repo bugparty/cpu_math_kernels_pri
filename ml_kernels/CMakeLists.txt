@@ -33,23 +33,14 @@ add_executable(ml_kernel_test_softmax
 
 target_include_directories(ml_kernel_test_softmax PRIVATE include)
 
-add_executable(ml_kernel_test_naive_ops
-    src/naive_ops.cpp
-    src/test_naive_ops.cpp
-)
-
-target_include_directories(ml_kernel_test_naive_ops PRIVATE include)
-
 if(MSVC)
     target_compile_options(ml_kernel_smoke PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
     target_compile_options(ml_kernel_bench PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
     target_compile_options(ml_kernel_test PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
     target_compile_options(ml_kernel_test_softmax PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
-    target_compile_options(ml_kernel_test_naive_ops PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
 else()
     target_compile_options(ml_kernel_smoke PRIVATE -O3 -march=native)
     target_compile_options(ml_kernel_bench PRIVATE -O3 -march=native)
     target_compile_options(ml_kernel_test PRIVATE -O3 -march=native)
     target_compile_options(ml_kernel_test_softmax PRIVATE -O3 -march=native)
-    target_compile_options(ml_kernel_test_naive_ops PRIVATE -O3 -march=native)
 endif()

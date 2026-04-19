@@ -4,7 +4,6 @@
 #include <cmath>
 
 #include "ml_kernels/naive_ops.h"
-#include "ml_kernels/naive_ops.h"
 #include "ml_kernels/softmax.h"
 
 void test_max_naive() {
