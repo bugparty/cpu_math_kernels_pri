@@ -17,6 +17,7 @@ add_executable(ml_kernel_test
 )
 
 target_include_directories(ml_kernel_test PRIVATE include)
+add_test(NAME ml_kernel_test COMMAND ml_kernel_test)
 
 add_executable(ml_kernel_bench
     src/naive_ops.cpp
@@ -32,6 +33,7 @@ add_executable(ml_kernel_test_softmax
 )
 
 target_include_directories(ml_kernel_test_softmax PRIVATE include)
+add_test(NAME ml_kernel_test_softmax COMMAND ml_kernel_test_softmax)
 
 if(MSVC)
     target_compile_options(ml_kernel_smoke PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)
