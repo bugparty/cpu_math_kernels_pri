@@ -8,7 +8,7 @@
 
 namespace ml_kernels {
 
-inline __m256 exp256_ps(__m256 x) {
+inline void exp256_ps_range_reduce(__m256 x, __m256 &r, __m256 &exp2n) {
     // Range reduction: exp(x) = 2^(x * log2(e)) = 2^(n + f)
     // Clamp x to avoid underflow
     x = _mm256_max_ps(x, _mm256_set1_ps(-87.3f));
@@ -17,8 +17,19 @@ inline __m256 exp256_ps(__m256 x) {
     __m256 n = _mm256_round_ps(x_log2e, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
     // r = x - n * ln(2). Split ln(2) for precision
-    __m256 r = _mm256_sub_ps(x, _mm256_mul_ps(n, _mm256_set1_ps(0.693145751953125f)));
+    r = _mm256_sub_ps(x, _mm256_mul_ps(n, _mm256_set1_ps(0.693145751953125f)));
     r = _mm256_sub_ps(r, _mm256_mul_ps(n, _mm256_set1_ps(1.428606765330187e-06f)));
+
+    __m256i n_int = _mm256_cvtps_epi32(n);
+    __m256i exp_shift = _mm256_add_epi32(n_int, _mm256_set1_epi32(127));
+    __m256i exp_shifted = _mm256_slli_epi32(exp_shift, 23);
+    exp2n = _mm256_castsi256_ps(exp_shifted);
+}
+
+inline __m256 exp256_ps(__m256 x) {
+    __m256 r;
+    __m256 exp2n;
+    exp256_ps_range_reduce(x, r, exp2n);
 
     __m256 c1 = _mm256_set1_ps(1.0f);
     __m256 c2 = _mm256_set1_ps(1.0f / 2.0f);
@@ -26,31 +37,43 @@ inline __m256 exp256_ps(__m256 x) {
     __m256 c4 = _mm256_set1_ps(1.0f / 24.0f);
     __m256 c5 = _mm256_set1_ps(1.0f / 120.0f);
 
-    // ⚡ Thunderbolt: break dependency chain using Estrin's scheme instead of Horner's method
+    __m256 p = c5;
+    p = _mm256_fmadd_ps(p, r, c4);
+    p = _mm256_fmadd_ps(p, r, c3);
+    p = _mm256_fmadd_ps(p, r, c2);
+    p = _mm256_fmadd_ps(p, r, c1);
+    p = _mm256_fmadd_ps(p, r, c1);
+
+    return _mm256_mul_ps(p, exp2n);
+}
+
+// Estrin-evaluated polynomial version to increase instruction-level parallelism.
+inline __m256 exp256_ps_estrin(__m256 x) {
+    __m256 r;
+    __m256 exp2n;
+    exp256_ps_range_reduce(x, r, exp2n);
+
+    __m256 c1 = _mm256_set1_ps(1.0f);
+    __m256 c2 = _mm256_set1_ps(1.0f / 2.0f);
+    __m256 c3 = _mm256_set1_ps(1.0f / 6.0f);
+    __m256 c4 = _mm256_set1_ps(1.0f / 24.0f);
+    __m256 c5 = _mm256_set1_ps(1.0f / 120.0f);
+
     __m256 p01 = _mm256_fmadd_ps(c1, r, c1);
     __m256 p23 = _mm256_fmadd_ps(c3, r, c2);
     __m256 p45 = _mm256_fmadd_ps(c5, r, c4);
 
     __m256 r2 = _mm256_mul_ps(r, r);
-
     __m256 p03 = _mm256_fmadd_ps(p23, r2, p01);
 
     __m256 r4 = _mm256_mul_ps(r2, r2);
     __m256 p = _mm256_fmadd_ps(p45, r4, p03);
 
-    __m256i n_int = _mm256_cvtps_epi32(n);
-    __m256i exp_shift = _mm256_add_epi32(n_int, _mm256_set1_epi32(127));
-    __m256i exp_shifted = _mm256_slli_epi32(exp_shift, 23);
-    __m256 exp2n = _mm256_castsi256_ps(exp_shifted);
-
     return _mm256_mul_ps(p, exp2n);
 }
 
-// ⚡ Thunderbolt: AVX2 Vectorized Softmax
-// Target: AVX2 (Haswell+)
-// Reason: Replaces scalar pass with fully vectorized max, exp, and inverse-sum normalization.
-// Expected gain: ~4-5x throughput on large inputs by avoiding scalar math and div latency.
-inline void softmax_v2(const float *input, float *output, std::size_t n) {
+template <typename ExpFunc>
+inline void softmax_v2_impl(const float *input, float *output, std::size_t n, ExpFunc exp_func) {
     if (n == 0) return;
 
     // 1. Find max
@@ -72,7 +95,7 @@ inline void softmax_v2(const float *input, float *output, std::size_t n) {
     __m256 sum_v = _mm256_setzero_ps();
     for (; i + 7 < n; i += 8) {
         __m256 x = _mm256_loadu_ps(input + i);
-        __m256 e = exp256_ps(_mm256_sub_ps(x, max_vec));
+        __m256 e = exp_func(_mm256_sub_ps(x, max_vec));
         _mm256_storeu_ps(output + i, e);
         sum_v = _mm256_add_ps(sum_v, e);
     }
@@ -100,6 +123,18 @@ inline void softmax_v2(const float *input, float *output, std::size_t n) {
     }
 }
 
+// ⚡ Thunderbolt: AVX2 Vectorized Softmax
+// Target: AVX2 (Haswell+)
+// Reason: Replaces scalar pass with fully vectorized max, exp, and inverse-sum normalization.
+// Expected gain: ~4-5x throughput on large inputs by avoiding scalar math and div latency.
+inline void softmax_v2(const float *input, float *output, std::size_t n) {
+    softmax_v2_impl(input, output, n, exp256_ps);
+}
+
+inline void softmax_v2_estrin(const float *input, float *output, std::size_t n) {
+    softmax_v2_impl(input, output, n, exp256_ps_estrin);
+}
+
 // ⚡ Thunderbolt: AVX2 Vectorized Softmax with 4x unrolling and instruction interleaving
 // Target: AVX2 (Haswell+)
 // Reason: Explicit interleaving of loads/subs and exp evaluations breaks FMA latency chains, giving the out-of-order scheduler 4 independent streams.
@@ -124,7 +159,12 @@ inline float reduce_sum(__m256 v) {
     return _mm256_cvtss_f32(v);
 }
 
-inline void softmax_v3(const float *input, float *output, std::size_t n) {
+// ⚡ Thunderbolt: AVX2 Vectorized Softmax with 4x unrolling and instruction interleaving
+// Target: AVX2 (Haswell+)
+// Reason: Explicit interleaving of loads/subs and exp evaluations breaks FMA latency chains, giving the out-of-order scheduler 4 independent streams.
+// Expected gain: ~5-10% throughput improvement over standard 4x unroll by hiding exp256_ps latency.
+template <typename ExpFunc>
+inline void softmax_v3_impl(const float *input, float *output, std::size_t n, ExpFunc exp_func) {
     if (n == 0) return;
 
     // 1. Find max
@@ -162,10 +202,10 @@ inline void softmax_v3(const float *input, float *output, std::size_t n) {
         __m256 x2 = _mm256_sub_ps(_mm256_loadu_ps(input + i + 16), max_vec);
         __m256 x3 = _mm256_sub_ps(_mm256_loadu_ps(input + i + 24), max_vec);
 
-        __m256 e0 = exp256_ps(x0);
-        __m256 e1 = exp256_ps(x1);
-        __m256 e2 = exp256_ps(x2);
-        __m256 e3 = exp256_ps(x3);
+        __m256 e0 = exp_func(x0);
+        __m256 e1 = exp_func(x1);
+        __m256 e2 = exp_func(x2);
+        __m256 e3 = exp_func(x3);
 
         _mm256_storeu_ps(output + i, e0);
         _mm256_storeu_ps(output + i + 8, e1);
@@ -183,7 +223,7 @@ inline void softmax_v3(const float *input, float *output, std::size_t n) {
 
     for (; i + 7 < n; i += 8) {
         __m256 x = _mm256_loadu_ps(input + i);
-        __m256 e = exp256_ps(_mm256_sub_ps(x, max_vec));
+        __m256 e = exp_func(_mm256_sub_ps(x, max_vec));
         _mm256_storeu_ps(output + i, e);
         sum0 = _mm256_add_ps(sum0, e);
     }
@@ -223,6 +263,14 @@ inline void softmax_v3(const float *input, float *output, std::size_t n) {
     for (; i < n; ++i) {
         output[i] *= inv_sum;
     }
+}
+
+inline void softmax_v3(const float *input, float *output, std::size_t n) {
+    softmax_v3_impl(input, output, n, exp256_ps);
+}
+
+inline void softmax_v3_estrin(const float *input, float *output, std::size_t n) {
+    softmax_v3_impl(input, output, n, exp256_ps_estrin);
 }
 
 } // namespace ml_kernels

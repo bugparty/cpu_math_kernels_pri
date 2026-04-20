@@ -108,16 +108,28 @@ void test_softmax_v3() {
     };
     std::vector<float> output_naive(input.size());
     std::vector<float> output_v3(input.size());
+    std::vector<float> output_v3_estrin(input.size());
+    std::vector<float> output_v2_estrin(input.size());
 
     ml_kernels::softmax_naive(input.data(), output_naive.data(), input.size());
     ml_kernels::softmax_v3(input.data(), output_v3.data(), input.size());
+    ml_kernels::softmax_v3_estrin(input.data(), output_v3_estrin.data(), input.size());
+    ml_kernels::softmax_v2_estrin(input.data(), output_v2_estrin.data(), input.size());
 
     float sum = 0.0f;
+    float sum_v3_estrin = 0.0f;
+    float sum_v2_estrin = 0.0f;
     for (size_t i = 0; i < input.size(); ++i) {
         assert(std::fabs(output_naive[i] - output_v3[i]) < 1e-4f);
+        assert(std::fabs(output_naive[i] - output_v3_estrin[i]) < 1e-4f);
+        assert(std::fabs(output_naive[i] - output_v2_estrin[i]) < 1e-4f);
         sum += output_v3[i];
+        sum_v3_estrin += output_v3_estrin[i];
+        sum_v2_estrin += output_v2_estrin[i];
     }
     assert(std::fabs(sum - 1.0f) < 1e-4f);
+    assert(std::fabs(sum_v3_estrin - 1.0f) < 1e-4f);
+    assert(std::fabs(sum_v2_estrin - 1.0f) < 1e-4f);
 
     std::cout << "test_softmax_v3 passed!" << std::endl;
 }
