@@ -105,14 +105,38 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: bench-all-executables
-        path: .
+        path: downloaded_bins
 
-    - name: Ensure executables are runnable
+    - name: Restore executables to expected paths
       run: |
-        chmod +x build/gemm/gemm_bench_all
-        chmod +x build/dgetrf/dgetrf_bench_all
-        chmod +x build/ml_kernels/ml_kernel_bench
-        chmod +x build/gemm/transpose_bench
+        set -euo pipefail
+        mkdir -p build/gemm build/dgetrf build/ml_kernels
+
+        for bin in gemm_bench_all dgetrf_bench_all ml_kernel_bench transpose_bench; do
+          src=$(find downloaded_bins -type f -name "$bin" | head -n 1 || true)
+          if [ -z "$src" ]; then
+            echo "Missing binary in artifact: $bin"
+            echo "Downloaded artifact tree:"
+            find downloaded_bins -maxdepth 4 -type f || true
+            exit 1
+          fi
+
+          case "$bin" in
+            gemm_bench_all|transpose_bench)
+              dst="build/gemm/$bin"
+              ;;
+            dgetrf_bench_all)
+              dst="build/dgetrf/$bin"
+              ;;
+            ml_kernel_bench)
+              dst="build/ml_kernels/$bin"
+              ;;
+          esac
+
+          cp "$src" "$dst"
+          chmod +x "$dst"
+          echo "Restored $bin -> $dst"
+        done
 
     - name: Run benchmark ${{ matrix.bench.name }}
       run: |
