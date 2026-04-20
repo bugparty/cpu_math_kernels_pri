@@ -281,16 +281,6 @@ public:
     }
 };
 REGISTER_BENCHMARK(SoftmaxV2Benchmark);
-
-class SoftmaxV2EstrinBenchmark : public SoftmaxBenchmark {
-public:
-    const char *name() const override { return "softmax_v2_estrin"; }
-    void run() override {
-        ml_kernels::softmax_v2_estrin(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
-        current_idx_ = (current_idx_ + 1) % pool_size_;
-    }
-};
-REGISTER_BENCHMARK(SoftmaxV2EstrinBenchmark);
 std::vector<int> parse_sizes(const std::string &s) {
     std::vector<int> out;
     std::stringstream ss(s);
@@ -315,16 +305,16 @@ public:
 };
 REGISTER_BENCHMARK(SoftmaxV3Benchmark);
 
-class SoftmaxV3EstrinBenchmark : public SoftmaxBenchmark {
+class SoftmaxV4Benchmark : public SoftmaxBenchmark {
 public:
-    const char *name() const override { return "softmax_v3_estrin"; }
+    const char *name() const override { return "softmax_v4"; }
 
     void run() override {
-        ml_kernels::softmax_v3_estrin(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        ml_kernels::softmax_v4(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
         current_idx_ = (current_idx_ + 1) % pool_size_;
     }
 };
-REGISTER_BENCHMARK(SoftmaxV3EstrinBenchmark);
+REGISTER_BENCHMARK(SoftmaxV4Benchmark);
 
 } // namespace
 
