@@ -50,6 +50,8 @@ jobs:
             MKL_ROOT=/opt/intel/oneapi/mkl/latest
         elif [ -d /opt/intel/mkl/include ]; then
             MKL_ROOT=/opt/intel/mkl
+        elif [ -f /usr/include/mkl.h ] || [ -f /usr/include/mkl/mkl.h ]; then
+            MKL_ROOT=/usr
         else
             echo "intel-mkl is required but MKL include path was not found" >&2
             exit 1
@@ -118,7 +120,7 @@ jobs:
     - name: Configure MKL runtime library path
       run: |
         set -euo pipefail
-        MKL_LIB=$(find /opt/intel -type f -name libmkl_intel_lp64.so | head -n 1 || true)
+        MKL_LIB=$(find /opt/intel /usr -type f -name libmkl_intel_lp64.so 2>/dev/null | head -n 1 || true)
         if [ -z "$MKL_LIB" ]; then
           echo "libmkl_intel_lp64.so not found after installing intel-mkl" >&2
           exit 1
