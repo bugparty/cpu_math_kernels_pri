@@ -25,8 +25,7 @@ jobs:
           openmpi-bin \
           libopenblas-dev \
           liblapack-dev \
-          liblapacke-dev \
-          intel-mkl
+          liblapacke-dev
 
     - name: Configure CMake
       run: |
@@ -51,8 +50,7 @@ jobs:
           -DBUILD_HW2=ON \
           -DBUILD_HW3=OFF \
           -DBUILD_ML_KERNELS=ON \
-          "-DARCH_FLAGS=${ARCH_FLAGS}" \
-          -DGEMM_MKL_ROOT=/usr
+          "-DARCH_FLAGS=${ARCH_FLAGS}"
 
     - name: Build project
       run: |
@@ -142,7 +140,7 @@ jobs:
       run: |
         mkdir -p benchmark_results
         echo "Running: ${{ matrix.bench.command }}"
-        bash -c '${{ matrix.bench.command }}' > benchmark_results/${{ matrix.bench.name }}.log
+        bash -c '${{ matrix.bench.command }}' > benchmark_results/${{ matrix.bench.name }}.log 2>&1
       timeout-minutes: 60
       continue-on-error: true
 
