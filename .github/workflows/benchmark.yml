@@ -25,7 +25,8 @@ jobs:
           openmpi-bin \
           libopenblas-dev \
           liblapack-dev \
-          liblapacke-dev
+          liblapacke-dev \
+          intel-mkl
 
     - name: Configure CMake
       run: |
@@ -45,12 +46,22 @@ jobs:
             ARCH_FLAGS="-mavx2;-mfma"
         fi
 
+        if [ -d /opt/intel/oneapi/mkl/latest/include ]; then
+            MKL_ROOT=/opt/intel/oneapi/mkl/latest
+        elif [ -d /opt/intel/mkl/include ]; then
+            MKL_ROOT=/opt/intel/mkl
+        else
+            echo "intel-mkl is required but MKL include path was not found" >&2
+            exit 1
+        fi
+
         cmake .. \
           -DBUILD_HW1=ON \
           -DBUILD_HW2=ON \
           -DBUILD_HW3=OFF \
           -DBUILD_ML_KERNELS=ON \
-          "-DARCH_FLAGS=${ARCH_FLAGS}"
+          "-DARCH_FLAGS=${ARCH_FLAGS}" \
+          -DGEMM_MKL_ROOT="${MKL_ROOT}"
 
     - name: Build project
       run: |
@@ -98,6 +109,23 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Install benchmark runtime dependencies
+      run: |
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y intel-mkl
+
+    - name: Configure MKL runtime library path
+      run: |
+        set -euo pipefail
+        MKL_LIB=$(find /opt/intel -type f -name libmkl_intel_lp64.so | head -n 1 || true)
+        if [ -z "$MKL_LIB" ]; then
+          echo "libmkl_intel_lp64.so not found after installing intel-mkl" >&2
+          exit 1
+        fi
+        MKL_LIB_DIR=$(dirname "$MKL_LIB")
+        echo "Using MKL library path: $MKL_LIB_DIR"
+        echo "LD_LIBRARY_PATH=$MKL_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
 
     - name: Download build artifacts
       uses: actions/download-artifact@v4
