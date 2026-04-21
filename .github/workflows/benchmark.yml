@@ -1,4 +1,4 @@
-name: GEMM Benchmarks
+name: benchmark
 
 on:
   push:
@@ -8,91 +8,240 @@ on:
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
-  benchmark:
+  build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
           build-essential \
           cmake \
           libopenmpi-dev \
           openmpi-bin \
           libopenblas-dev \
           liblapack-dev \
-          liblapacke-dev
-    
+          liblapacke-dev \
+          intel-mkl
+
     - name: Configure CMake
       run: |
+        echo "CPU Information:"
+        cat /proc/cpuinfo | grep 'model name' | uniq
+        echo "Supported instruction sets (AVX2/AVX512):"
+        cat /proc/cpuinfo | grep -E 'avx2|avx512' | uniq
         mkdir -p build
         cd build
-        cmake .. -DBUILD_HW1=ON -DBUILD_HW2=OFF -DBUILD_HW3=OFF
-    
+
+        # Check if AVX512 is supported
+        if cat /proc/cpuinfo | grep -q avx512; then
+            echo "AVX512 is supported. Using AVX512 flags."
+            ARCH_FLAGS="-mavx512f;-mavx512dq;-mavx512vl;-mfma"
+        else
+            echo "AVX512 is NOT supported. Using AVX2 flags."
+            ARCH_FLAGS="-mavx2;-mfma"
+        fi
+
+        if [ -d /opt/intel/oneapi/mkl/latest/include ]; then
+            MKL_ROOT=/opt/intel/oneapi/mkl/latest
+        elif [ -d /opt/intel/mkl/include ]; then
+            MKL_ROOT=/opt/intel/mkl
+        elif [ -f /usr/include/mkl.h ] || [ -f /usr/include/mkl/mkl.h ]; then
+            MKL_ROOT=/usr
+        else
+            echo "intel-mkl is required but MKL include path was not found" >&2
+            exit 1
+        fi
+
+        cmake .. \
+          -DBUILD_HW1=ON \
+          -DBUILD_HW2=ON \
+          -DBUILD_HW3=OFF \
+          -DBUILD_ML_KERNELS=ON \
+          "-DARCH_FLAGS=${ARCH_FLAGS}" \
+          -DGEMM_MKL_ROOT="${MKL_ROOT}"
+
     - name: Build project
       run: |
         cd build
-        make gemm_bench -j$(nproc)
+        make gemm_bench_all dgetrf_bench_all ml_kernel_bench transpose_bench -j$(nproc)
 
     - name: Verify build
       run: |
-        ls -lh build/gemm/gemm_bench
-        ./build/gemm/gemm_bench --count
-    
-    - name: Run benchmarks
-      run: |
-        cd gemm
-        mkdir -p benchmark_results
-        ./run_all_benchmarks.sh benchmark_results
-      timeout-minutes: 120  # 2 hours max
-      continue-on-error: true  # Don't fail if benchmark times out
+        ls -lh build/gemm/gemm_bench_all
+        ./build/gemm/gemm_bench_all --iters 1 --warmup 0 --sizes 96
+        ls -lh build/dgetrf/dgetrf_bench_all
+        ./build/dgetrf/dgetrf_bench_all --iters 1 --warmup 0 --sizes 96
+        ls -lh build/ml_kernels/ml_kernel_bench
+        DISABLE_CPU_BINDING=1 ./build/ml_kernels/ml_kernel_bench --iters 1 --warmup 0 --sizes 96
+        ls -lh build/gemm/transpose_bench
+        ./build/gemm/transpose_bench --iters 1 --warmup 0 --sizes 96
 
-    - name: Generate CSV results
-      if: always()
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: bench-all-executables
+        path: |
+          build/gemm/gemm_bench_all
+          build/dgetrf/dgetrf_bench_all
+          build/ml_kernels/ml_kernel_bench
+          build/gemm/transpose_bench
+        retention-days: 7
+
+  benchmark:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        bench:
+          - name: gemm_bench_all
+            command: ./build/gemm/gemm_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920
+          - name: dgetrf_bench_all
+            command: ./build/dgetrf/dgetrf_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920
+          - name: ml_kernel_bench
+            command: DISABLE_CPU_BINDING=1 ./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 96,480,960,1920
+          - name: transpose_bench
+            command: ./build/gemm/transpose_bench --iters 3 --warmup 1 --sizes 96,480,960,1920
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install benchmark runtime dependencies
       run: |
-        cd gemm
-        ./quick_bench.sh benchmark_results.csv || true
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y intel-mkl
+
+    - name: Configure MKL runtime library path
+      run: |
+        set -euo pipefail
+        MKL_LIB=$(find /opt/intel /usr -type f -name libmkl_intel_lp64.so 2>/dev/null | head -n 1 || true)
+        if [ -z "$MKL_LIB" ]; then
+          echo "libmkl_intel_lp64.so not found after installing intel-mkl" >&2
+          exit 1
+        fi
+        MKL_LIB_DIR=$(dirname "$MKL_LIB")
+        echo "Using MKL library path: $MKL_LIB_DIR"
+        echo "LD_LIBRARY_PATH=$MKL_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: bench-all-executables
+        path: downloaded_bins
+
+    - name: Restore executables to expected paths
+      run: |
+        set -euo pipefail
+        mkdir -p build/gemm build/dgetrf build/ml_kernels
+
+        for bin in gemm_bench_all dgetrf_bench_all ml_kernel_bench transpose_bench; do
+          src=$(find downloaded_bins -type f -name "$bin" | head -n 1 || true)
+          if [ -z "$src" ]; then
+            echo "Missing binary in artifact: $bin"
+            echo "Downloaded artifact tree:"
+            find downloaded_bins -maxdepth 4 -type f || true
+            exit 1
+          fi
+
+          case "$bin" in
+            gemm_bench_all|transpose_bench)
+              dst="build/gemm/$bin"
+              ;;
+            dgetrf_bench_all)
+              dst="build/dgetrf/$bin"
+              ;;
+            ml_kernel_bench)
+              dst="build/ml_kernels/$bin"
+              ;;
+          esac
+
+          cp "$src" "$dst"
+          chmod +x "$dst"
+          echo "Restored $bin -> $dst"
+        done
+
+    - name: Run benchmark ${{ matrix.bench.name }}
+      run: |
+        mkdir -p benchmark_results
+        echo "Running: ${{ matrix.bench.command }}"
+        bash -c '${{ matrix.bench.command }}' > benchmark_results/${{ matrix.bench.name }}.log 2>&1
+      timeout-minutes: 60
+      continue-on-error: true
+
+    - name: Upload benchmark result ${{ matrix.bench.name }}
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-result-${{ matrix.bench.name }}
+        path: benchmark_results/${{ matrix.bench.name }}.log
+        retention-days: 30
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: always()
+
+    steps:
+    - name: Download benchmark artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: benchmark-result-*
+        merge-multiple: true
+        path: benchmark_results
 
     - name: Create summary
-      if: always()
       run: |
-        cd gemm
         echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Parallel matrix jobs: gemm/dgetrf/ml_kernels/transpose" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
 
-        if [ -f benchmark_results.csv ]; then
-          echo "### Performance Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f benchmark_results/gemm_bench_all.log ]; then
+          echo "### GEMM Performance Summary" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          head -20 benchmark_results.csv | column -t -s, >> $GITHUB_STEP_SUMMARY || cat benchmark_results.csv | head -20 >> $GITHUB_STEP_SUMMARY
+          head -120 benchmark_results/gemm_bench_all.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+
+        if [ -f benchmark_results/dgetrf_bench_all.log ]; then
+          echo "### DGETRF Performance Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -120 benchmark_results/dgetrf_bench_all.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+
+        if [ -f benchmark_results/ml_kernel_bench.log ]; then
+          echo "### ML Kernels Performance Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -120 benchmark_results/ml_kernel_bench.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+
+        if [ -f benchmark_results/transpose_bench.log ]; then
+          echo "### Transpose Sub-Benchmark Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -180 benchmark_results/transpose_bench.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
         fi
 
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Available Kernels" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Benchmark Commands" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        ../build/gemm/gemm_bench 2>&1 | grep -A 20 "Please select" || echo "Could not list kernels"
+        echo "./build/gemm/gemm_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
+        echo "./build/dgetrf/dgetrf_bench_all --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
+        echo "DISABLE_CPU_BINDING=1 ./build/ml_kernels/ml_kernel_bench --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
+        echo "./build/gemm/transpose_bench --iters 3 --warmup 1 --sizes 96,480,960,1920" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-    
-    - name: Upload benchmark results
-      if: always()
+
+    - name: Upload combined benchmark results
       uses: actions/upload-artifact@v4
       with:
         name: benchmark-results
-        path: |
-          gemm/benchmark_results/
-          gemm/benchmark_results.csv
+        path: benchmark_results/
         retention-days: 30
-
-    - name: Upload build artifacts
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: gemm-bench-executable
-        path: build/gemm/gemm_bench
-        retention-days: 7
