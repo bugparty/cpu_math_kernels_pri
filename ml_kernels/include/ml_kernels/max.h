@@ -1,0 +1,62 @@
+#pragma once
+
+#include <cstddef>
+#include <limits>
+#include <immintrin.h>
+#include <algorithm>
+
+namespace ml_kernels {
+
+// ⚡ Thunderbolt: AVX2 Vectorized Max Reduction
+// Target: AVX2 (Haswell+)
+// Reason: The naive scalar max reduction (max_naive) is bottlenecked by a loop-carried dependency and low ILP.
+// Vectorizing it with AVX2 and unrolling 4x allows 32 elements to be processed per iteration across multiple execution ports.
+// The final reduction is done efficiently in-register using shuffles, avoiding a scalar extraction loop.
+// Expected gain: ~4-5x throughput vs max_naive.
+inline float max_v2(const float *input, std::size_t n) {
+    if (n == 0) return 0.0f;
+
+    std::size_t i = 0;
+    __m256 max_v = _mm256_set1_ps(std::numeric_limits<float>::lowest());
+    __m256 max0 = max_v, max1 = max_v, max2 = max_v, max3 = max_v;
+
+    // Unroll 4x for 32 elements per iteration
+    for (; i + 31 < n; i += 32) {
+        max0 = _mm256_max_ps(max0, _mm256_loadu_ps(input + i));
+        max1 = _mm256_max_ps(max1, _mm256_loadu_ps(input + i + 8));
+        max2 = _mm256_max_ps(max2, _mm256_loadu_ps(input + i + 16));
+        max3 = _mm256_max_ps(max3, _mm256_loadu_ps(input + i + 24));
+    }
+
+    // Reduce the 4 vectors into 1
+    max0 = _mm256_max_ps(max0, max1);
+    max2 = _mm256_max_ps(max2, max3);
+    max0 = _mm256_max_ps(max0, max2);
+
+    // Remainder loop for multiples of 8 elements
+    for (; i + 7 < n; i += 8) {
+        max0 = _mm256_max_ps(max0, _mm256_loadu_ps(input + i));
+    }
+
+    // In-register horizontal reduction
+    __m128 lo = _mm256_castps256_ps128(max0);
+    __m128 hi = _mm256_extractf128_ps(max0, 1);
+    lo = _mm_max_ps(lo, hi);
+
+    __m128 shuf = _mm_shuffle_ps(lo, lo, _MM_SHUFFLE(2, 3, 0, 1));
+    lo = _mm_max_ps(lo, shuf);
+    shuf = _mm_shuffle_ps(lo, lo, _MM_SHUFFLE(1, 0, 3, 2));
+    lo = _mm_max_ps(lo, shuf);
+
+    float max_val = _mm_cvtss_f32(lo);
+
+    // Scalar epilogue
+    for (; i < n; ++i) {
+        if (input[i] > max_val) {
+            max_val = input[i];
+        }
+    }
+    return max_val;
+}
+
+} // namespace ml_kernels
