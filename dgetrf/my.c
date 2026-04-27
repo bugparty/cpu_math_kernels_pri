@@ -113,7 +113,7 @@ double myddot(int n, const double *x,  const double *y){
     return sum;
 }
 void forward(double *A,double *B,int n,int *ipiv){
-    double * y = (double*)malloc(n*sizeof(double));
+    double * y = (double*)_mm_malloc(n*sizeof(double), 32);
     int i;
         /*
     y(1) = b(pvt(1));
@@ -126,10 +126,10 @@ void forward(double *A,double *B,int n,int *ipiv){
         y[i] = B[ipiv[i]]- myddot(i,y, &A[i*n]);
     }
     memcpy(B,y,n*sizeof(double));
-    free(y);
+    _mm_free(y);
 }
 void backward(double *A,double *B,int n,int *ipiv){
-    double * x = (double*)malloc(n*sizeof(double));
+    double * x = (double*)_mm_malloc(n*sizeof(double), 32);
     int i;
         /*
     y(1) = b(pvt(1));
@@ -154,7 +154,7 @@ void backward(double *A,double *B,int n,int *ipiv){
         B[i] = x[i];
     }
     memcpy(B,x,n*sizeof(double));
-    free(x);
+    _mm_free(x);
 }
 void mydtrsv(char UPLO,double *A,double *B,int n,int *ipiv)
 {
