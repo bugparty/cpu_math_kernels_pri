@@ -20,3 +20,10 @@
 **Learning:** The naive scalar max reduction (`max_naive`) suffers from a strict loop-carried dependency (each element must be compared to the running `current_max`), which limits ILP and severely restricts throughput. By unrolling the loop 4x and vectorizing with AVX2 (`_mm256_max_ps`), multiple independent accumulators can be maintained, allowing the processor to compute 32 elements per loop iteration. The final result can be determined efficiently via an in-register horizontal reduction instead of sequentially extracting elements.
 **Evidence:** The benchmark `max_v2` achieved ~2.8-2.9 GFLOP/s vs `max_naive`'s ~0.63 GFLOP/s on N=16384000 (a ~4.5x speedup), confirming that breaking the dependency chain hides execution latency.
 **Action:** When implementing scalar reductions (e.g., max, sum) over large arrays, prioritize vectorization with 4x-8x unrolling and multiple independent accumulators to break latency bounds, then merge the accumulators via tree-reduction at the end of the hot loop.
+## 2024-10-26 - AVX2 Max Reduction 8x Unrolling
+
+**Learning:** While 4x unrolling breaks some loop-carried dependencies, `_mm256_max_ps` has a 4-cycle latency. A 4x unroll only issues 4 instructions, leaving execution ports idle while waiting for the dependency chain to resolve. Unrolling 8x maintains 8 independent accumulators, perfectly matching the latency and fully saturating the execution ports, transitioning the kernel from latency-bound to throughput-bound.
+
+**Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
+
+**Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
