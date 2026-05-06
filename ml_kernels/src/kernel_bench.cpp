@@ -137,6 +137,7 @@ REGISTER_RELU_BENCHMARK(relu_v2_5);
 REGISTER_RELU_BENCHMARK(relu_v2_6);
 REGISTER_RELU_BENCHMARK(relu_v2_7);
 REGISTER_RELU_BENCHMARK(relu_v2_8);
+REGISTER_RELU_BENCHMARK(relu_v4);
 
 class MaxBenchmarkBase : public BenchmarkBase {
 public:
