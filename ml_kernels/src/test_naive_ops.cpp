@@ -4,7 +4,7 @@
 #include <cmath>
 
 #include "ml_kernels/naive_ops.h"
-#include "ml_kernels/naive_ops.h"
+#include "ml_kernels/relu.h"
 #include "ml_kernels/softmax.h"
 
 void test_max_naive() {
@@ -49,6 +49,12 @@ void test_relu_naive() {
 
         ml_kernels::relu_naive(input.data(), output.data(), input.size());
 
+        std::vector<float> output_v4(input.size(), -1.0f);
+        ml_kernels::relu_v4(input.data(), output_v4.data(), input.size());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            assert(std::fabs(output_v4[i] - expected[i]) < 1e-6f);
+        }
+
         for (size_t i = 0; i < expected.size(); ++i) {
             assert(std::fabs(output[i] - expected[i]) < 1e-6f);
         }
@@ -61,6 +67,12 @@ void test_relu_naive() {
         std::vector<float> output(input.size(), -1.0f);
 
         ml_kernels::relu_naive(input.data(), output.data(), input.size());
+
+        std::vector<float> output_v4(input.size(), -1.0f);
+        ml_kernels::relu_v4(input.data(), output_v4.data(), input.size());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            assert(std::fabs(output_v4[i] - expected[i]) < 1e-6f);
+        }
 
         for (size_t i = 0; i < expected.size(); ++i) {
             assert(std::fabs(output[i] - expected[i]) < 1e-6f);
@@ -75,6 +87,12 @@ void test_relu_naive() {
 
         ml_kernels::relu_naive(input.data(), output.data(), input.size());
 
+        std::vector<float> output_v4(input.size(), -1.0f);
+        ml_kernels::relu_v4(input.data(), output_v4.data(), input.size());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            assert(std::fabs(output_v4[i] - expected[i]) < 1e-6f);
+        }
+
         for (size_t i = 0; i < expected.size(); ++i) {
             assert(std::fabs(output[i] - expected[i]) < 1e-6f);
         }
@@ -87,6 +105,7 @@ void test_relu_naive() {
 
         // Should not crash
         ml_kernels::relu_naive(input.data(), output.data(), 0);
+        ml_kernels::relu_v4(input.data(), output.data(), 0);
     }
 
     std::cout << "test_relu_naive passed!" << std::endl;

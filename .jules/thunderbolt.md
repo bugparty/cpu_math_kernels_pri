@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## $(date +%Y-%m-%d) - [ReLU Vectorized Epilogue]
+**Learning:** Masked loads/stores (`_mm256_maskload_ps` / `_mm256_maskstore_ps`) are a highly effective and safe technique to eliminate scalar epilogues in AVX2 kernels. They suppress page faults for out-of-bounds lanes, allowing full vector throughput to the end of the array. Additionally, never use `_mm256_stream_ps` unless caller alignment is completely guaranteed and asserted, otherwise it triggers a GP fault; `_mm256_storeu_ps` must be used when handling vectors like `std::vector` where 32-byte alignment is not guaranteed.
+**Evidence:** `ml_kernel_bench` testing with `relu_v4`. Unaligned memory triggered GP fault with `_mm256_stream_ps`. Once corrected, the masked vector epilogue worked correctly without segfaulting.
+**Action:** Always assert `ptr % 32 == 0` when using streaming stores. Default to `_mm256_storeu_ps` on unknown memory. Use mask instructions to cleanly finish array ends.
