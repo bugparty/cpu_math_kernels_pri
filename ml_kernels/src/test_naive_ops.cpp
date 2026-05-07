@@ -1,3 +1,4 @@
+#include <random>
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -7,6 +8,7 @@
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/softmax.h"
 
+void test_softmax_v6();
 void test_max_naive() {
     // Happy path
     {
@@ -187,5 +189,33 @@ int main() {
     test_softmax_v3();
     test_softmax_v4();
     test_softmax_v5();
+    test_softmax_v6();
     std::cout << "All tests passed successfully!" << std::endl;
+}
+void test_softmax_v6() {
+    std::cout << "Testing softmax_v6..." << std::endl;
+    for (std::size_t n : {1, 3, 8, 15, 16, 31, 32, 33, 100, 1024, 1024 * 1024 + 7}) {
+        std::vector<float> in(n);
+        std::vector<float> expected(n);
+        std::vector<float> actual(n);
+
+        std::mt19937 gen(42);
+        std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
+        for (std::size_t i = 0; i < n; ++i) {
+            in[i] = dist(gen);
+        }
+
+        ml_kernels::softmax_naive(in.data(), expected.data(), n);
+        ml_kernels::softmax_v6(in.data(), actual.data(), n);
+
+        for (std::size_t i = 0; i < n; ++i) {
+            float err = std::abs(expected[i] - actual[i]);
+            if (err > 1e-4f) {
+                std::cerr << "Mismatch at n=" << n << " i=" << i
+                          << " expected=" << expected[i]
+                          << " actual=" << actual[i] << std::endl;
+                std::exit(1);
+            }
+        }
+    }
 }

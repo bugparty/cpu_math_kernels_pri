@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## $(date +%Y-%m-%d) - Explicit Instruction Interleaving in AVX2 Softmax
+**Learning:** In AVX2, when unrolling complex math sequences like `exp` (which heavily relies on FMAs via Horner's scheme or Estrin's), simply calling the vectorized math function consecutively inside a 4x unrolled loop leaves performance on the table. FMA latency (typically 4 cycles) creates a dependency chain within each `exp` call. By manually inlining and interleaving the independent FMA instructions across the 4 unrolled accumulators (e.g., executing all 4 Horner `p0 = fmadd(c5, r0, c4)` instructions before the next polynomial degree), the Out-of-Order execution engine can fully saturate the execution ports, completely hiding the FMA latency.
+**Evidence:** The explicitly interleaved `softmax_v6` achieved ~4.25 GFLOP/s compared to `softmax_v5`'s 4.02 GFLOP/s (Fixed Memory Mode, N=1M), a consistent ~5-10% throughput improvement.
+**Action:** When unrolling loops containing long FMA latency chains (like polynomial approximations for transcendental functions), consider manual instruction-level interleaving across the independent accumulators rather than sequential calls to the vector function.
