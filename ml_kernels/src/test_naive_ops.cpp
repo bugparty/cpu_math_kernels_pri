@@ -181,7 +181,36 @@ void test_softmax_v5() {
     std::cout << "test_softmax_v5 passed!" << std::endl;
 }
 
+
+
+
+#include <random>
+
+void test_softmax_v6() {
+    std::cout << "Running test_softmax_v6..." << std::endl;
+    for (std::size_t n : {1, 3, 4, 8, 15, 16, 31, 32, 33, 63, 64, 65, 100, 128, 256, 1024, 1025, 4096}) {
+        std::vector<float> input(n);
+        std::vector<float> output_naive(n);
+        std::vector<float> output_v6(n);
+
+        std::mt19937 rng(n);
+        std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
+        for (std::size_t i = 0; i < n; ++i) {
+            input[i] = dist(rng);
+        }
+
+        ml_kernels::softmax_naive(input.data(), output_naive.data(), n);
+        ml_kernels::softmax_v6(input.data(), output_v6.data(), n);
+
+        for (std::size_t i = 0; i < n; ++i) {
+            assert(std::fabs(output_naive[i] - output_v6[i]) < 1e-4f);
+        }
+    }
+    std::cout << "test_softmax_v6 passed!" << std::endl;
+}
+
 int main() {
+    test_softmax_v6();
     test_relu_naive();
     test_max_naive();
     test_softmax_v3();

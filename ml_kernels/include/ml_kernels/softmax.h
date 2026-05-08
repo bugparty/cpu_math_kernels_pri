@@ -501,4 +501,164 @@ inline void softmax_v5(const float *input, float *output, std::size_t n) {
     }
 }
 
+
+#ifdef __AVX512F__
+// ⚡ Thunderbolt: AVX-512 Vectorized Softmax
+// Target: AVX-512 (Skylake-X+)
+// Reason: AVX-512 processes 16 floats per vector (vs 8 in AVX2), doubling the theoretical throughput. In addition, AVX-512 provides masking and improved exponential math sequences.
+// Expected gain: ~1.5-2.0x over AVX2 implementations (softmax_v5/v6) on capable hardware.
+inline void softmax_v6(const float *input, float *output, std::size_t n) {
+    if (n == 0) return;
+
+    // 1. Find max
+    std::size_t i = 0;
+    __m512 max0 = _mm512_set1_ps(std::numeric_limits<float>::lowest());
+    __m512 max1 = max0, max2 = max0, max3 = max0;
+
+    for (; i + 63 < n; i += 64) {
+        max0 = _mm512_max_ps(max0, _mm512_loadu_ps(input + i));
+        max1 = _mm512_max_ps(max1, _mm512_loadu_ps(input + i + 16));
+        max2 = _mm512_max_ps(max2, _mm512_loadu_ps(input + i + 32));
+        max3 = _mm512_max_ps(max3, _mm512_loadu_ps(input + i + 48));
+    }
+    max0 = _mm512_max_ps(max0, max1);
+    max2 = _mm512_max_ps(max2, max3);
+    max0 = _mm512_max_ps(max0, max2);
+
+    for (; i + 15 < n; i += 16) {
+        max0 = _mm512_max_ps(max0, _mm512_loadu_ps(input + i));
+    }
+
+    float max_val = _mm512_reduce_max_ps(max0);
+
+    if (i < n) {
+        __mmask16 mask = (1 << (n - i)) - 1;
+        __m512 rem = _mm512_maskz_loadu_ps(mask, input + i);
+        // fill inactive lanes with lowest
+        __m512 lowest = _mm512_set1_ps(std::numeric_limits<float>::lowest());
+        rem = _mm512_mask_blend_ps(mask, lowest, rem);
+        max_val = std::max(max_val, _mm512_reduce_max_ps(rem));
+    }
+
+    __m512 max_vec = _mm512_set1_ps(max_val);
+
+    // 2. Compute exp and sum
+    i = 0;
+    __m512 sum0 = _mm512_setzero_ps();
+    __m512 sum1 = _mm512_setzero_ps();
+    __m512 sum2 = _mm512_setzero_ps();
+    __m512 sum3 = _mm512_setzero_ps();
+
+    for (; i + 63 < n; i += 64) {
+        __m512 x0 = _mm512_sub_ps(_mm512_loadu_ps(input + i), max_vec);
+        __m512 x1 = _mm512_sub_ps(_mm512_loadu_ps(input + i + 16), max_vec);
+        __m512 x2 = _mm512_sub_ps(_mm512_loadu_ps(input + i + 32), max_vec);
+        __m512 x3 = _mm512_sub_ps(_mm512_loadu_ps(input + i + 48), max_vec);
+
+        auto exp512 = [](const __m512& x) {
+            __m512 max_clamped = _mm512_max_ps(x, _mm512_set1_ps(-87.3f));
+            __m512 x_log2e = _mm512_mul_ps(max_clamped, _mm512_set1_ps(1.4426950408889634f));
+            __m512i n_int = _mm512_cvt_roundps_epi32(x_log2e, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+            __m512 n_flt = _mm512_cvtepi32_ps(n_int);
+
+            __m512 r = _mm512_fnmadd_ps(n_flt, _mm512_set1_ps(0.693145751953125f), max_clamped);
+            r = _mm512_fnmadd_ps(n_flt, _mm512_set1_ps(1.428606765330187e-06f), r);
+
+            __m512 p = _mm512_fmadd_ps(_mm512_set1_ps(1.0f / 120.0f), r, _mm512_set1_ps(1.0f / 24.0f));
+            p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f / 6.0f));
+            p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f / 2.0f));
+            p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));
+            p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));
+
+            __m512i exp_shifted = _mm512_slli_epi32(_mm512_add_epi32(n_int, _mm512_set1_epi32(127)), 23);
+            return _mm512_mul_ps(p, _mm512_castsi512_ps(exp_shifted));
+        };
+
+        __m512 e0 = exp512(x0);
+        __m512 e1 = exp512(x1);
+        __m512 e2 = exp512(x2);
+        __m512 e3 = exp512(x3);
+
+        _mm512_storeu_ps(output + i, e0);
+        _mm512_storeu_ps(output + i + 16, e1);
+        _mm512_storeu_ps(output + i + 32, e2);
+        _mm512_storeu_ps(output + i + 48, e3);
+
+        sum0 = _mm512_add_ps(sum0, e0);
+        sum1 = _mm512_add_ps(sum1, e1);
+        sum2 = _mm512_add_ps(sum2, e2);
+        sum3 = _mm512_add_ps(sum3, e3);
+    }
+
+    sum0 = _mm512_add_ps(sum0, sum1);
+    sum2 = _mm512_add_ps(sum2, sum3);
+    sum0 = _mm512_add_ps(sum0, sum2);
+
+    auto exp512_single = [](const __m512& x) {
+        __m512 max_clamped = _mm512_max_ps(x, _mm512_set1_ps(-87.3f));
+        __m512 x_log2e = _mm512_mul_ps(max_clamped, _mm512_set1_ps(1.4426950408889634f));
+        __m512i n_int = _mm512_cvt_roundps_epi32(x_log2e, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        __m512 n_flt = _mm512_cvtepi32_ps(n_int);
+        __m512 r = _mm512_fnmadd_ps(n_flt, _mm512_set1_ps(0.693145751953125f), max_clamped);
+        r = _mm512_fnmadd_ps(n_flt, _mm512_set1_ps(1.428606765330187e-06f), r);
+        __m512 p = _mm512_fmadd_ps(_mm512_set1_ps(1.0f / 120.0f), r, _mm512_set1_ps(1.0f / 24.0f));
+        p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f / 6.0f));
+        p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f / 2.0f));
+        p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));
+        p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));
+        __m512i exp_shifted = _mm512_slli_epi32(_mm512_add_epi32(n_int, _mm512_set1_epi32(127)), 23);
+        return _mm512_mul_ps(p, _mm512_castsi512_ps(exp_shifted));
+    };
+
+    for (; i + 15 < n; i += 16) {
+        __m512 x = _mm512_loadu_ps(input + i);
+        __m512 e = exp512_single(_mm512_sub_ps(x, max_vec));
+        _mm512_storeu_ps(output + i, e);
+        sum0 = _mm512_add_ps(sum0, e);
+    }
+
+    float sum_val = _mm512_reduce_add_ps(sum0);
+
+    if (i < n) {
+        __mmask16 mask = (1 << (n - i)) - 1;
+        __m512 x = _mm512_maskz_loadu_ps(mask, input + i);
+        __m512 lowest = _mm512_set1_ps(std::numeric_limits<float>::lowest());
+        x = _mm512_mask_blend_ps(mask, lowest, x);
+        __m512 e = exp512_single(_mm512_sub_ps(x, max_vec));
+        _mm512_mask_storeu_ps(output + i, mask, e);
+        // mask out inactive elements for sum reduction
+        __m512 e_masked = _mm512_maskz_mov_ps(mask, e);
+        sum_val += _mm512_reduce_add_ps(e_masked);
+    }
+
+    if (sum_val == 0.0f) return;
+
+    // 3. Normalize
+    float inv_sum = 1.0f / sum_val;
+    __m512 inv_sum_v = _mm512_set1_ps(inv_sum);
+    i = 0;
+
+    for (; i + 63 < n; i += 64) {
+        _mm512_storeu_ps(output + i, _mm512_mul_ps(_mm512_loadu_ps(output + i), inv_sum_v));
+        _mm512_storeu_ps(output + i + 16, _mm512_mul_ps(_mm512_loadu_ps(output + i + 16), inv_sum_v));
+        _mm512_storeu_ps(output + i + 32, _mm512_mul_ps(_mm512_loadu_ps(output + i + 32), inv_sum_v));
+        _mm512_storeu_ps(output + i + 48, _mm512_mul_ps(_mm512_loadu_ps(output + i + 48), inv_sum_v));
+    }
+
+    for (; i + 15 < n; i += 16) {
+        _mm512_storeu_ps(output + i, _mm512_mul_ps(_mm512_loadu_ps(output + i), inv_sum_v));
+    }
+
+    if (i < n) {
+        __mmask16 mask = (1 << (n - i)) - 1;
+        __m512 o = _mm512_maskz_loadu_ps(mask, output + i);
+        _mm512_mask_storeu_ps(output + i, mask, _mm512_mul_ps(o, inv_sum_v));
+    }
+}
+#else
+// Fallback if AVX-512 is not compiled
+inline void softmax_v6(const float *input, float *output, std::size_t n) {
+    softmax_v5(input, output, n);
+}
+#endif
 } // namespace ml_kernels
