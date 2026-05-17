@@ -472,6 +472,7 @@ void my_block_f(double *A,double *B,int n)
 
     mydtrsv('L',A,B,n,ipiv);
     mydtrsv('U',A,B,n,ipiv);
+    free(ipiv);
 }
 
 #endif
