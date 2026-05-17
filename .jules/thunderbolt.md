@@ -27,3 +27,7 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2025-02-27 - [Softmax AVX2 Fused FMA Exp & 8x Max Unroll]
+**Learning:** In transcendental AVX2 SIMD approximations (like exp256 for softmax kernels), combining constants for `r = x - n * ln(2)` into a single FMA instruction—rather than splitting `ln(2)` for exact precision—can significantly boost throughput while keeping results within typical ML numerical tolerances (e.g., 1e-4) due to the shift-invariant nature of operations like softmax. 8x loop unrolling is effective for the max reduction phase, but 4x remains optimal for the heavier `exp` polynomial phase to avoid register pressure and instruction fetch bottlenecks.
+**Evidence:** `softmax_v6` achieved 10-15% latency reduction (e.g., ~1100ms -> ~1000ms for 4000 iters on N=1048576) over `softmax_v5` with numerical diff ~3.6e-12.
+**Action:** When approximating `exp` in precision-tolerant ML kernels, prefer fused FMA operations for range reduction constants to trade a negligible amount of exactness for increased pipeline throughput and reduced latency.

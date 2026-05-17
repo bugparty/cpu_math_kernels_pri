@@ -152,6 +152,28 @@ void test_softmax_v4() {
     std::cout << "test_softmax_v4 passed!" << std::endl;
 }
 
+void test_softmax_v6() {
+    std::cout << "Running test_softmax_v6..." << std::endl;
+    for (std::size_t n : {1, 2, 7, 8, 15, 16, 31, 32, 63, 64, 100}) {
+        std::vector<float> input(n);
+        for (std::size_t i = 0; i < n; ++i) input[i] = static_cast<float>(i);
+
+        std::vector<float> output_ref(n);
+        ml_kernels::softmax_naive(input.data(), output_ref.data(), n);
+
+        std::vector<float> output(n, 0.0f);
+        ml_kernels::softmax_v6(input.data(), output.data(), n);
+
+        for (std::size_t i = 0; i < n; ++i) {
+            if (std::abs(output[i] - output_ref[i]) > 1e-4f) {
+                std::cerr << "Mismatch at " << i << ": " << output[i] << " vs " << output_ref[i] << std::endl;
+                assert(false);
+            }
+        }
+    }
+    std::cout << "test_softmax_v6 passed!" << std::endl;
+}
+
 void test_softmax_v5() {
     std::cout << "Running test_softmax_v5..." << std::endl;
     std::vector<float> input = {
@@ -187,5 +209,6 @@ int main() {
     test_softmax_v3();
     test_softmax_v4();
     test_softmax_v5();
+    test_softmax_v6();
     std::cout << "All tests passed successfully!" << std::endl;
 }
