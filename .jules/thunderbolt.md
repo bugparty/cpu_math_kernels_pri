@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax Single-FMA Range Reduction Approximation
+
+**Learning:** In transcendental AVX2 SIMD approximations (like `exp256_ps` for softmax kernels), reducing the standard two-FMA exact `ln(2)` multiplication `r = x - n * ln(2)` into a single FMA instruction (`_mm256_fnmadd_ps(n, _mm256_set1_ps(0.69314718f), x)`) sacrifices exact fp32 precision but yields higher throughput. Because softmax is shift-invariant and often tolerates minor numerical drifts, this `~2.4e-7` error easily stays within standard ML numerical tolerances (e.g., 1e-4) while reducing instruction count and execution port pressure on the FMA units.
+
+**Evidence:** `softmax_v6` leveraging this single-FMA approximation achieved 2.55 GFLOP/s (Pool) and 3.85 GFLOP/s (Fixed) vs `softmax_v5`'s 2.47 / 3.79 GFLOP/s on an N=1638400 benchmark array, verifying improved execution unit saturation.
+
+**Action:** When creating high-throughput map operations that are shift-invariant or tolerate minor deviations (like Softmax), look for opportunities to replace exact mathematical expansions (like multi-instruction constant decomposition) with single-instruction approximations that stay within the tolerance threshold.
