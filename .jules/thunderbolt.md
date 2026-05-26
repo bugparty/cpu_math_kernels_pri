@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-05-20 - Asymmetric Unrolling and FMA Combining in AVX2 Softmax
+**Learning:** In AVX2 softmax kernels, while exponentiation is best unrolled 4x to prevent YMM register spilling, simpler phases like max reduction and normalization can safely be unrolled 8x to better saturate execution ports. Also, combining constants for `r = x - n * ln(2)` into a single FMA instruction instead of splitting `ln(2)` boosts throughput while maintaining numerical tolerance.
+**Evidence:** `softmax_v6` (4x exp, 8x max/norm, 1x FMA for ln2) outperformed `softmax_v5` (4x everywhere, split ln2) slightly (4.27 vs 4.12 GFLOPS at N=1048576) while keeping results well within 1e-4 tolerance vs scalar.
+**Action:** Always evaluate the register pressure of each loop phase independently. Heavily unroll simple loops (like max and mul) to hide latency, but restrict unrolling on complex transcendental sequences (like exp) to avoid register spilling.
