@@ -181,11 +181,44 @@ void test_softmax_v5() {
     std::cout << "test_softmax_v5 passed!" << std::endl;
 }
 
+
+void test_softmax_v6() {
+    std::cout << "Running test_softmax_v6..." << std::endl;
+
+    std::vector<float> input = {
+        1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+        1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f, 7.7f, 8.8f,
+        -1.0f, -2.0f, -3.0f, -4.0f, -5.0f, -6.0f, -7.0f, -8.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        100.0f, 100.0f, 100.0f, 100.0f, 100.0f, 100.0f, 100.0f, 100.0f, // 40 elements
+        -100.0f, -100.0f, -100.0f, -100.0f, -100.0f, -100.0f, -100.0f, -100.0f, // 48 elements
+        1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, // 56 elements
+        1.1f, 2.2f, 3.3f, 4.4f, 5.5f, 6.6f, 7.7f, 8.8f, // 64 elements
+        1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, // 72 elements to test the 8-element remainder loop
+        9.0f, 10.0f, 11.0f // scalar remainder
+    };
+
+    std::vector<float> output_ref(input.size());
+    std::vector<float> output_v6(input.size());
+
+    ml_kernels::softmax_naive(input.data(), output_ref.data(), input.size());
+    ml_kernels::softmax_v6(input.data(), output_v6.data(), input.size());
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (std::abs(output_ref[i] - output_v6[i]) > 1e-4) {
+            std::cerr << "Mismatch at index " << i << ": expected " << output_ref[i] << ", got " << output_v6[i] << std::endl;
+            std::exit(1);
+        }
+    }
+    std::cout << "test_softmax_v6 passed!" << std::endl;
+}
+
 int main() {
     test_relu_naive();
     test_max_naive();
     test_softmax_v3();
     test_softmax_v4();
     test_softmax_v5();
+    test_softmax_v6();
     std::cout << "All tests passed successfully!" << std::endl;
 }

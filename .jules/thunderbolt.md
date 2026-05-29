@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-05-29 - Softmax 8x Max/Norm Unroll, 4x Exp Unroll
+
+**Learning:** When vectorizing math kernels like Softmax in AVX2, simple reduction (max) and pointwise multiplication (normalization) phases benefit significantly from extreme unrolling (e.g. 8x to saturate Execution Ports) due to short dependency chains. However, compute-heavy FMA chains (like polynomial evaluation in `exp256`) should be kept at 4x unroll; 8x unroll for the exp phase causes intense YMM register spilling and drastically reduces throughput. Mixing unroll factors based on the phase's register pressure yields the best pipelining without thrashing the register file.
+
+**Evidence:** Microbenchmark on `softmax_v6` vs `softmax_v5` showed peak fixed-memory GFLOPs scaling from 3.89 to 4.16 (+6.9%) on large inputs (N=1M) simply by applying 8x unrolling exclusively to the max and norm loops while keeping exp intact at 4x.
+
+**Action:** Before homogeneously unrolling an entire kernel loop 8x, profile and identify sub-phases. Separate them logically, unroll simple phases 8x, and bound complex poly-eval phases at 4x to maximize throughput on Haswell+ architectures.
