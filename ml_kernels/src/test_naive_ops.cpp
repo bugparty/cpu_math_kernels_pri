@@ -4,7 +4,7 @@
 #include <cmath>
 
 #include "ml_kernels/naive_ops.h"
-#include "ml_kernels/naive_ops.h"
+#include "ml_kernels/max.h"
 #include "ml_kernels/softmax.h"
 
 void test_max_naive() {
@@ -36,6 +36,25 @@ void test_max_naive() {
     }
 
     std::cout << "test_max_naive passed!" << std::endl;
+}
+
+void test_max_v4() {
+    std::cout << "Running test_max_v4..." << std::endl;
+    // We want N > 128 to test the 16x unroll loop, the 8x unroll loop, and scalar remainder
+    std::vector<float> input(150);
+    for (size_t i = 0; i < input.size(); ++i) {
+        input[i] = (float)i;
+    }
+    // Set a known max value inside the scalar remainder part to ensure it executes correctly
+    input[145] = 999.0f;
+
+    float result_naive = ml_kernels::max_naive(input.data(), input.size());
+    float result_v4 = ml_kernels::max_v4(input.data(), input.size());
+
+    assert(result_naive == result_v4);
+    assert(result_v4 == 999.0f);
+
+    std::cout << "test_max_v4 passed!" << std::endl;
 }
 
 void test_relu_naive() {
@@ -184,6 +203,7 @@ void test_softmax_v5() {
 int main() {
     test_relu_naive();
     test_max_naive();
+    test_max_v4();
     test_softmax_v3();
     test_softmax_v4();
     test_softmax_v5();
