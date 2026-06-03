@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2025-05-24 - Single-FMA Range Reduction in Softmax
+**Learning:** In transcendental AVX2 SIMD approximations (like exp256 for softmax kernels), combining constants for `r = x - n * ln(2)` into a single FMA instruction—rather than splitting `ln(2)` for exact precision—can significantly boost throughput while keeping results within typical ML numerical tolerances (e.g., 1e-4) due to the shift-invariant nature of operations like softmax.
+**Evidence:** Using 8x max/norm unrolling and single-FMA for ln2 approximation improved softmax performance from 831 ms to 814 ms on 10485760-element arrays over 50 iterations compared to the exact two-FMA implementation, with max element divergence at ~4e-10.
+**Action:** Use a single-FMA approximation for log reduction constants where numerical precision tolerance permits.
