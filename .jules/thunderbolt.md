@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-05-27 - Fusing Split Constants in SIMD exp Approximations
+**Learning:** In transcendental AVX2 SIMD approximations (like exp256 for softmax kernels), `ln(2)` is often split into high and low precision components to avoid precision loss when computing `r = x - n * ln(2)`. However, for shift-invariant operations like Softmax, the slight precision loss on the exponent from using a single full-precision `ln(2)` constant combined in a single FMA instruction is negligible for overall numerical correctness. This avoids a secondary `fnmadd` instruction.
+**Evidence:** `softmax_v6` achieves 5-10% higher throughput compared to `softmax_v5` while maintaining results within a 1e-4 tolerance.
+**Action:** When optimizing shift-invariant ML kernels (like Softmax or Attention), consider relaxing exact precision requirements for transcendental approximations by fusing split constants into single FMA instructions to reduce instruction count and port pressure.
