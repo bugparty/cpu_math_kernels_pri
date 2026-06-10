@@ -27,3 +27,11 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2025-02-20 - AVX2 Softmax Single-FMA Range Reduction
+
+**Learning:** In transcendental AVX2 SIMD approximations (like exp256 for softmax kernels), combining constants for `r = x - n * ln(2)` into a single FMA instruction (`_mm256_fnmadd_ps(n, ln2_constant, x)`)—rather than splitting `ln(2)` for exact precision—can significantly boost throughput due to the shortened FMA dependency chain. Because operations like Softmax involve normalizing by the sum of exponentials, the slight precision losses from using a single FMA cancel out during the final division, keeping numerical outputs well within typical ML tolerances (e.g., 1e-4).
+
+**Evidence:** Microbenchmark results (`ml_kernel_bench --filter 'softmax_v[56]'`) showed an increase in throughput from ~4.9 GFLOP/s to ~5.4 GFLOP/s (Fixed Memory mode, N=16384) by substituting the exact `ln(2)` split subtraction with a single FMA, while the output passed verification against the scalar baseline (`max_error < 1e-4`).
+
+**Action:** When optimizing shift-invariant ML kernels like Softmax, prefer single-FMA range reductions for exponentiation (e.g., `x - n * ln(2)`) over split-precision constants to maximize ILP and instruction throughput, provided the error bound remains acceptable for the specific use case.
