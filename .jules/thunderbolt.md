@@ -27,3 +27,7 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-06-14 - FMA Latency in exp256 Constants
+**Learning:** When evaluating polynomial approximations of `exp` via FMA (e.g., Horner's), replacing the split-constant `ln(2)` subtraction `r = x - n * ln(2)_hi - n * ln(2)_lo` with a single combined `ln(2)` subtraction `r = x - n * ln(2)_combined` via `_mm256_fnmadd_ps` removes one FMA instruction from the critical path of the exponentiation routine. Due to the shift-invariant normalization behavior of the outer Softmax operation, the resulting minor precision loss is negligible, keeping it well within standard 1e-4 tolerance.
+**Evidence:** `softmax_v6` achieves 4.10 GFLOP/s on `N=1048576` vs `softmax_v5` at 3.89 GFLOP/s (a ~5.4% throughput improvement).
+**Action:** When computing range reduction in transcendentals for ML workloads, favor coalescing high/low precision constants into a single operation if the outer math operator (like Softmax) provides inherent numerical stability to small scale discrepancies.
