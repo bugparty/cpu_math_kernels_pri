@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-05-28 - Combining ln(2) constants in Range Reduction
+**Learning:** In transcendental AVX2 SIMD approximations (like `exp256` for softmax kernels), splitting `ln(2)` into two separate constants (e.g., `0.693145751953125f` and `1.428606765330187e-06f`) to maintain higher precision increases instruction count and port pressure via two consecutive FMA operations. By combining the constants into a single `_mm256_fnmadd_ps` instruction (using `0.6931471805599453f`), we reduce latency and instruction dependencies.
+**Evidence:** Combining the constant leads to a ~5-10% throughput improvement across multiple array sizes in `softmax_v6` vs `softmax_v5` benchmarks (e.g., 4.42 -> 4.78 GFLOP/s at N=262144).
+**Action:** When numerical tolerance allows (such as ML workflows that tolerate ~1e-4 error or are shift-invariant like softmax), prefer single FMA range reduction over high-precision constant splitting to maximize throughput.
