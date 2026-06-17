@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-06-17 - Register Spilling Limits in Mixed-ILP Kernels
+**Learning:** In AVX2, kernels with multiple distinct computational phases must carefully tune unroll factors per phase. Pass 1 (max reduction) and Pass 3 (normalization) scale efficiently up to 8x unrolling to saturate L1 bandwidth and ALUs. However, Pass 2 (Horner's exp computation) consumes heavily from the 16 YMM registers. Pushing Pass 2 to an 8x unroll exhausts the register file, causing severe register spilling to the stack and negating any ILP gains. Heterogeneous unrolling (8x-4x-8x) avoids this threshold while maximizing throughput.
+**Evidence:** 8x uniform unroll for `softmax` reduced performance due to spilling. Changing to 8x (max) - 4x (exp) - 8x (norm) achieved ~10% speedup over the 4x uniform baseline on 1M element arrays without spelling penalties.
+**Action:** Always count required architectural registers (YMM/ZMM) for the most complex inline loop phase (like transcendental approximations). Use heterogeneous unrolling if only simple phases (like load/max/mul/store) can sustain wider unrolls.
