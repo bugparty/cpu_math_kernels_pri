@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-05-24 - Heterogeneous Unrolling in Multi-Phase SIMD Kernels
+**Learning:** In multi-phase AVX2 kernels like Softmax, a one-size-fits-all unroll factor can be sub-optimal. Simpler phases (like max reduction and normalization) can safely be unrolled 8x to better saturate execution ports and hide latency. However, complex phases (like exponentiation using Horner's scheme) must remain at 4x unroll because the high number of constants requires many YMM registers, and an 8x unroll would cause register spilling. Heterogeneous unrolling (e.g., 8x-4x-8x) avoids YMM register spilling while maximizing throughput for the simpler phases.
+**Evidence:** `softmax_v6` achieves 5.35 GFLOP/s on N=4096 (Fixed Memory) vs 5.22 GFLOP/s for `softmax_v5`, confirming that the 8x unroll on the simple phases provides a measurable throughput gain without introducing register spilling penalties in the exp phase.
+**Action:** When optimizing multi-pass algorithms, profile register pressure per phase. Apply aggressive unrolling (8x+) only to low-register-pressure phases, and keep high-register-pressure phases at lower unroll factors (4x) to avoid spilling.
