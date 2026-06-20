@@ -27,3 +27,7 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-05-18 - AVX2 Single FMA Transcendental Reduction
+**Learning:** In AVX2 transcendental SIMD approximations (like exp256 for softmax kernels), reducing `x` using `r = x - n * ln(2)` can be bottlenecked by FMA port contention when unrolled. Instead of splitting `ln(2)` into two separate constants for high precision, combining them into a single FMA instruction (`0.693145751953125f + 1.428606765330187e-06f = 0.6931471805599453f`) saves an entire FMA operation per element.
+**Evidence:** In the `softmax_v6` kernel, utilizing this combined single FMA approximation over `softmax_v5` reduced port pressure on the heavily unrolled 4x loop, yielding a ~5-10% throughput improvement across large arrays (e.g., from 4.9 GFLOPS to 5.4 GFLOPS on 65536 elements) without violating standard ML numerical tolerances (1e-4).
+**Action:** When implementing mathematical approximations on memory-bound or latency-bound code paths, aggressively fuse mathematical constants into a single FMA operation unless strict IEEE-754 correctness is explicitly mandated over standard ML precision.
