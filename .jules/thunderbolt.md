@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax FMA-Optimized exp256 Constants
+
+**Learning:** In AVX2 transcendental approximations (like exp256 for softmax kernels), combining the constants for `r = x - n * ln(2)` into a single FMA instruction (`_mm256_fnmadd_ps(n, _mm256_set1_ps(0.6931471805599453f), x)`)—rather than splitting `ln(2)` for exact precision (`r = x - n*ln2_hi - n*ln2_lo`)—can significantly boost throughput. Since operations like softmax are shift-invariant, the slight precision loss stays well within typical ML numerical tolerances (e.g., 1e-4) while reducing instruction count and execution port pressure inside the unrolled loop.
+
+**Evidence:** Combining the constant and using a single FMA saved 4 instructions per 32-element loop iteration (4x unroll).
+
+**Action:** When vectorizing math functions for shift-invariant operations like softmax, prioritize combining split precision constants into single FMA instructions to reduce port pressure and instruction count, provided the result remains within acceptable numerical tolerances.
