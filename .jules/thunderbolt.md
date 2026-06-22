@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-06-22 - Single-FMA Range Reduction in Transcendental AVX2 Approximations
+**Learning:** In transcendental AVX2 SIMD approximations (like exp256 for softmax kernels), combining constants for `r = x - n * ln(2)` into a single FMA instruction (`_mm256_fnmadd_ps(n, ln(2)_constant, x)`) rather than splitting `ln(2)` for exact precision (`r = x - n * c1; r = r - n * c2`) can boost throughput by reducing instructions on the critical path. The reduced precision remains within acceptable ML numerical tolerances (e.g., 1e-4) due to the shift-invariant properties of algorithms like Softmax.
+**Evidence:** In ml_kernel_bench, `softmax_v6` achieves 5.30 GFLOP/s compared to `softmax_v5` at 4.81 GFLOP/s for N=65536 in Fixed Memory mode, while passing validation tests within 1e-4 tolerance.
+**Action:** When implementing transcendental functions (e.g., exp, log) for ML workloads on x86, default to a single FMA for range reduction instead of split precision, unless strict IEEE-754 precision is explicitly required.
