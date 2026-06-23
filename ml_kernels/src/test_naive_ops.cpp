@@ -5,6 +5,7 @@
 
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/naive_ops.h"
+#include "ml_kernels/max.h"
 #include "ml_kernels/softmax.h"
 
 void test_max_naive() {
@@ -92,7 +93,52 @@ void test_relu_naive() {
     std::cout << "test_relu_naive passed!" << std::endl;
 }
 
+
+void test_max_v4() {
+    std::cout << "Running test_max_v4..." << std::endl;
+
+    // Test 1: Happy path, exact multiple of 128 elements (unrolled 16x)
+    {
+        std::vector<float> input(128, 1.0f);
+        input[64] = 42.0f;
+        float result = ml_kernels::max_v4(input.data(), input.size());
+        assert(result == 42.0f);
+    }
+
+    // Test 2: More than 128 elements with a remainder (e.g. 150)
+    {
+        std::vector<float> input(150, -5.0f);
+        input[140] = -2.0f;
+        float result = ml_kernels::max_v4(input.data(), input.size());
+        assert(result == -2.0f);
+    }
+
+    // Test 3: Less than 128 elements (testing scalar epilogue and remainders)
+    {
+        std::vector<float> input(70, 3.0f);
+        input[15] = 10.0f;
+        float result = ml_kernels::max_v4(input.data(), input.size());
+        assert(result == 10.0f);
+    }
+
+    // Test 4: Single element
+    {
+        std::vector<float> input = {99.0f};
+        float result = ml_kernels::max_v4(input.data(), input.size());
+        assert(result == 99.0f);
+    }
+
+    // Test 5: Empty array
+    {
+        float result = ml_kernels::max_v4(nullptr, 0);
+        assert(result == 0.0f);
+    }
+
+    std::cout << "test_max_v4 passed!" << std::endl;
+}
+
 void test_softmax_v3() {
+
     std::cout << "Running test_softmax_v3..." << std::endl;
     std::vector<float> input = {
         -2.0f, -0.5f, 1.0f, 3.0f,
@@ -184,7 +230,10 @@ void test_softmax_v5() {
 int main() {
     test_relu_naive();
     test_max_naive();
+
+    test_max_v4();
     test_softmax_v3();
+
     test_softmax_v4();
     test_softmax_v5();
     std::cout << "All tests passed successfully!" << std::endl;
