@@ -518,3 +518,55 @@ private:
     std::size_t current_idx_ = 0;
 };
 REGISTER_BENCHMARK(MaxV3Benchmark);
+
+class MaxV4Benchmark : public MaxBenchmarkBase {
+public:
+    const char *name() const override { return "max_v4"; }
+
+    void setup(int n) override {
+        size_t bytes_per_iteration = n * sizeof(float);
+        size_t target_pool_bytes = 100ULL * 1024 * 1024;
+        pool_size_ = g_use_pool ? std::max<std::size_t>(1, target_pool_bytes / bytes_per_iteration) : 1;
+
+        inputs_.resize(pool_size_);
+        std::mt19937 rng(12345);
+        std::uniform_real_distribution<float> dist(-4.0f, 4.0f);
+        for (std::size_t i = 0; i < pool_size_; ++i) {
+            inputs_[i].resize(n);
+            for (float &value : inputs_[i]) {
+                value = dist(rng);
+            }
+        }
+
+        result_ref_ = inputs_[0].size() == 0
+            ? 0.0f
+            : *std::max_element(inputs_[0].begin(), inputs_[0].end());
+        result_ = 0.0f;
+        current_idx_ = 0;
+    }
+
+    void run() override {
+        result_ = ml_kernels::max_v4(inputs_[current_idx_].data(), inputs_[current_idx_].size());
+        current_idx_ = (current_idx_ + 1) % pool_size_;
+    }
+
+    bool verify() override {
+        current_idx_ = 0;
+        run();
+        return std::fabs(result_ - result_ref_) <= 1e-6f;
+    }
+
+    void teardown() override {
+        inputs_.clear();
+        result_ = 0.0f;
+        result_ref_ = 0.0f;
+    }
+
+private:
+    std::vector<std::vector<float>> inputs_;
+    std::size_t pool_size_;
+    std::size_t current_idx_;
+    float result_;
+    float result_ref_;
+};
+REGISTER_BENCHMARK(MaxV4Benchmark);

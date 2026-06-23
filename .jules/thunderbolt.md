@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-06-23 - 16x Unroll for Simple Vector Reductions
+**Learning:** `_mm256_max_ps` has a 4-cycle latency. Simple vector reduction loops benefit from aggressive 16x unrolling to fully utilize all 16 YMM registers. This perfectly hides instruction latency and shifts bottlenecks directly to L1/L2 cache bandwidth constraints, which yields better throughput over 8x unroll (which only uses 8 YMM registers) when cache bandwidth allows.
+**Evidence:** `max_v4` benchmarked at 5.03 GFLOP/s vs `max_v3` at 4.90 GFLOP/s on a 4M array in fixed memory mode.
+**Action:** Unroll simple loop reductions (like max or sum) up to 16x to use all 16 YMM registers when the computation is latency-bound.
