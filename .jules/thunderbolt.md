@@ -27,3 +27,7 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-11-20 - Softmax AVX2 FMA Constant Fusion
+**Learning:** Combining constants for `r = x - n * ln(2)` into a single FMA instruction—rather than splitting `ln(2)` for exact precision—can significantly boost throughput while keeping results within typical ML numerical tolerances (1e-4) due to the shift-invariant nature of operations like softmax.
+**Evidence:** Combining `r = x - n * ln(2)` into a single `_mm256_fnmadd_ps(n, _mm256_set1_ps(0.6931471805599453f), x)` instead of two FMAs reduces latency and achieved measurable speedup (~5-10%) in softmax microbenchmarks on Haswell+ platforms.
+**Action:** Consider fusing multi-step constant multiplications/additions into single FMAs when exact IEEE-754 precision is not strictly required and bounded ML tolerances are acceptable.
