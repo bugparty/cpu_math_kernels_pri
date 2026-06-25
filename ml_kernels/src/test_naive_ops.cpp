@@ -152,6 +152,35 @@ void test_softmax_v4() {
     std::cout << "test_softmax_v4 passed!" << std::endl;
 }
 
+
+void test_softmax_v6() {
+    std::cout << "Running test_softmax_v6..." << std::endl;
+    // ensure n > 64 to test 8x unroll + remainder
+    std::vector<float> input = {
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+        1.0, 2.0
+    };
+    std::vector<float> output_naive(input.size());
+    std::vector<float> output_v6(input.size());
+
+    ml_kernels::softmax_naive(input.data(), output_naive.data(), input.size());
+    ml_kernels::softmax_v6(input.data(), output_v6.data(), input.size());
+
+    for (std::size_t i = 0; i < input.size(); ++i) {
+        if (std::abs(output_naive[i] - output_v6[i]) > 1e-4) {
+            std::cerr << "Mismatch at index " << i << ": naive=" << output_naive[i] << " v6=" << output_v6[i] << std::endl;
+            exit(1);
+        }
+    }
+    std::cout << "test_softmax_v6 passed!" << std::endl;
+}
+
 void test_softmax_v5() {
     std::cout << "Running test_softmax_v5..." << std::endl;
     std::vector<float> input = {
@@ -187,5 +216,6 @@ int main() {
     test_softmax_v3();
     test_softmax_v4();
     test_softmax_v5();
+    test_softmax_v6();
     std::cout << "All tests passed successfully!" << std::endl;
 }
