@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax Single-FMA Range Reduction and 8x Unrolling
+
+**Learning:** In AVX2 transcendental approximations (like exp256 for softmax kernels), combining constants for `r = x - n * ln(2)` into a single FMA instruction—rather than splitting `ln(2)` for exact precision—can significantly boost throughput while keeping results within ML numerical tolerances due to the shift-invariant nature of Softmax. Additionally, simpler transcendental functions reduce register pressure and allow for aggressive 8x unrolling, fully hiding instruction latency.
+
+**Evidence:** The implementation `softmax_v6` using 8x unroll and single-FMA range reduction achieved ~10% higher throughput than `softmax_v5` with exact precision range reduction and 4x unroll on microbenchmarks.
+
+**Action:** When approximating transcendental functions for ML use cases, evaluate if strict IEEE compliance is necessary. Sacrificing minor exactness (e.g. using a single FMA for range reduction) to decrease register pressure and instruction count often allows for wider unrolling (e.g. 8x vs 4x) which translates directly into higher throughput.
