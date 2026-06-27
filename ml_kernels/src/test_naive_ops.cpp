@@ -177,9 +177,34 @@ void test_softmax_v5() {
         sum += output_v5[i];
     }
     assert(std::fabs(sum - 1.0f) < 1e-4f);
-
     std::cout << "test_softmax_v5 passed!" << std::endl;
 }
+
+void test_softmax_v6() {
+    std::cout << "Running test_softmax_v6..." << std::endl;
+
+    std::vector<float> input(72);
+    for (int i = 0; i < 72; ++i) {
+        input[i] = static_cast<float>(i) * 0.1f - 3.6f;
+    }
+
+    std::vector<float> output_naive(input.size(), 0.0f);
+    std::vector<float> output_v6(input.size(), 0.0f);
+
+    ml_kernels::softmax_naive(input.data(), output_naive.data(), input.size());
+    ml_kernels::softmax_v6(input.data(), output_v6.data(), input.size());
+
+    for (std::size_t i = 0; i < input.size(); ++i) {
+        float diff = std::abs(output_naive[i] - output_v6[i]);
+        if (diff > 1e-6f) { // Slightly looser tolerance for Single FMA approximation
+            std::cerr << "test_softmax_v6 failed at index " << i << "! Expected: " << output_naive[i] << ", Got: " << output_v6[i] << " Diff: " << diff << std::endl;
+            assert(false);
+        }
+    }
+
+    std::cout << "test_softmax_v6 passed!" << std::endl;
+}
+
 
 int main() {
     test_relu_naive();
@@ -187,5 +212,6 @@ int main() {
     test_softmax_v3();
     test_softmax_v4();
     test_softmax_v5();
+    test_softmax_v6();
     std::cout << "All tests passed successfully!" << std::endl;
 }

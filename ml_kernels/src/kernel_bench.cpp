@@ -332,6 +332,18 @@ public:
 };
 REGISTER_BENCHMARK(SoftmaxV5Benchmark);
 
+class SoftmaxV6Benchmark : public SoftmaxBenchmark {
+public:
+    const char *name() const override { return "softmax_v6"; }
+
+    void run() override {
+        ml_kernels::softmax_v6(inputs_[current_idx_].data(), outputs_[current_idx_].data(), inputs_[0].size());
+        current_idx_ = (current_idx_ + 1) % pool_size_;
+    }
+};
+REGISTER_BENCHMARK(SoftmaxV6Benchmark);
+
+
 } // namespace
 
 int main(int argc, char **argv) {
