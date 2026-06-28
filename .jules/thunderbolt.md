@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-05-18 - Softmax Single-FMA exp256 optimization
+**Learning:** Simplifying transcendental approximations (e.g., using a single FMA for `r = x - n * ln(2)`) reduces register pressure, which enables aggressive 8x unrolling across all phases and significantly boosts throughput on x86-64 without practically sacrificing accuracy.
+**Evidence:** Benchmark improvement from ~5.69 GFLOP/s to ~6.23 GFLOP/s on N=65536.
+**Action:** Apply combined FMA for range reduction instead of precision-split subtraction in shift-invariant operations where high accuracy isn't strictly necessary.
