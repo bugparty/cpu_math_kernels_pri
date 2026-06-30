@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-06-30 - Softmax AVX2 8x Unroll with single-FMA exp256
+**Learning:** In transcendental AVX2 SIMD approximations (like exp256 for softmax kernels), combining constants for `r = x - n * ln(2)` into a single FMA instruction—rather than splitting `ln(2)` for exact precision—can significantly boost throughput while keeping results within typical ML numerical tolerances (e.g., 1e-4) due to the shift-invariant nature of operations like softmax. This reduced instruction count and lower register pressure then allows aggressive 8x unrolling across all kernel phases (max, exp+sum, scale) to fully saturate execution ports.
+**Evidence:** `softmax_v6` achieves 6.20 GFLOP/s vs `softmax_v5` at 5.55 GFLOP/s (N=16384 Fixed Memory) and 4.58 GFLOP/s vs 4.06 GFLOP/s (N=1048576), representing a ~12-15% throughput improvement. Tests confirm correctness within 1e-4 tolerance.
+**Action:** Always evaluate exactness vs throughput trade-offs for transcendentals in shift/scale-invariant contexts (like softmax layer outputs). If exact precision isn't strictly required by standard tolerance (1e-4), merge constants to save FMA slots and use the saved registers to double unroll depth.

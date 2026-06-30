@@ -501,4 +501,129 @@ inline void softmax_v5(const float *input, float *output, std::size_t n) {
     }
 }
 
+inline __m256 exp256_ps_v3(__m256 x) {
+    x = _mm256_max_ps(x, _mm256_set1_ps(-87.3f));
+    __m256 x_log2e = _mm256_mul_ps(x, _mm256_set1_ps(1.4426950408889634f));
+
+    __m256i n_int = _mm256_cvtps_epi32(x_log2e);
+    __m256 n = _mm256_cvtepi32_ps(n_int);
+
+    // Single FMA for r
+    __m256 r = _mm256_fnmadd_ps(n, _mm256_set1_ps(0.6931471805599453f), x);
+
+    __m256 c1 = _mm256_set1_ps(1.0f);
+    __m256 c2 = _mm256_set1_ps(1.0f / 2.0f);
+    __m256 c3 = _mm256_set1_ps(1.0f / 6.0f);
+    __m256 c4 = _mm256_set1_ps(1.0f / 24.0f);
+    __m256 c5 = _mm256_set1_ps(1.0f / 120.0f);
+
+    __m256 p = _mm256_fmadd_ps(c5, r, c4);
+    p = _mm256_fmadd_ps(p, r, c3);
+    p = _mm256_fmadd_ps(p, r, c2);
+    p = _mm256_fmadd_ps(p, r, c1);
+    p = _mm256_fmadd_ps(p, r, c1);
+
+    __m256i exp_shift = _mm256_add_epi32(n_int, _mm256_set1_epi32(127));
+    __m256i exp_shifted = _mm256_slli_epi32(exp_shift, 23);
+    __m256 exp2n = _mm256_castsi256_ps(exp_shifted);
+
+    return _mm256_mul_ps(p, exp2n);
+}
+
+// ⚡ Thunderbolt: AVX2 Vectorized Softmax with single-FMA exp256 and 8x unroll
+// Target: AVX2 (Haswell+)
+// Reason: By combining the constants for r = x - n * ln(2) into a single FMA instruction instead of splitting ln(2) for exact precision, we reduce instruction count. The shift-invariant nature of softmax maintains accuracy within typical ML tolerances (1e-4). Furthermore, the simplified exp256 reduces register pressure, allowing aggressive 8x unrolling across all phases to fully saturate execution ports.
+// Expected gain: ~15% throughput over softmax_v5.
+inline void softmax_v6(const float *input, float *output, std::size_t n) {
+    if (n == 0) return;
+
+    std::size_t i = 0;
+    __m256 max_v = _mm256_set1_ps(std::numeric_limits<float>::lowest());
+    __m256 m0 = max_v, m1 = max_v, m2 = max_v, m3 = max_v;
+    __m256 m4 = max_v, m5 = max_v, m6 = max_v, m7 = max_v;
+
+    for (; i + 63 < n; i += 64) {
+        m0 = _mm256_max_ps(m0, _mm256_loadu_ps(input + i));
+        m1 = _mm256_max_ps(m1, _mm256_loadu_ps(input + i + 8));
+        m2 = _mm256_max_ps(m2, _mm256_loadu_ps(input + i + 16));
+        m3 = _mm256_max_ps(m3, _mm256_loadu_ps(input + i + 24));
+        m4 = _mm256_max_ps(m4, _mm256_loadu_ps(input + i + 32));
+        m5 = _mm256_max_ps(m5, _mm256_loadu_ps(input + i + 40));
+        m6 = _mm256_max_ps(m6, _mm256_loadu_ps(input + i + 48));
+        m7 = _mm256_max_ps(m7, _mm256_loadu_ps(input + i + 56));
+    }
+    m0 = _mm256_max_ps(m0, m4);
+    m1 = _mm256_max_ps(m1, m5);
+    m2 = _mm256_max_ps(m2, m6);
+    m3 = _mm256_max_ps(m3, m7);
+    m0 = _mm256_max_ps(m0, m1);
+    m2 = _mm256_max_ps(m2, m3);
+    m0 = _mm256_max_ps(m0, m2);
+
+    for (; i + 7 < n; i += 8) m0 = _mm256_max_ps(m0, _mm256_loadu_ps(input + i));
+    float max_val = reduce_max(m0);
+    for (; i < n; ++i) max_val = std::max(max_val, input[i]);
+
+    __m256 max_vec = _mm256_set1_ps(max_val);
+
+    i = 0;
+    __m256 s0 = _mm256_setzero_ps(), s1 = _mm256_setzero_ps();
+    __m256 s2 = _mm256_setzero_ps(), s3 = _mm256_setzero_ps();
+    __m256 s4 = _mm256_setzero_ps(), s5 = _mm256_setzero_ps();
+    __m256 s6 = _mm256_setzero_ps(), s7 = _mm256_setzero_ps();
+
+    for (; i + 63 < n; i += 64) {
+        __m256 e0 = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i), max_vec));
+        __m256 e1 = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i + 8), max_vec));
+        __m256 e2 = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i + 16), max_vec));
+        __m256 e3 = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i + 24), max_vec));
+        __m256 e4 = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i + 32), max_vec));
+        __m256 e5 = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i + 40), max_vec));
+        __m256 e6 = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i + 48), max_vec));
+        __m256 e7 = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i + 56), max_vec));
+
+        _mm256_storeu_ps(output + i, e0); _mm256_storeu_ps(output + i + 8, e1);
+        _mm256_storeu_ps(output + i + 16, e2); _mm256_storeu_ps(output + i + 24, e3);
+        _mm256_storeu_ps(output + i + 32, e4); _mm256_storeu_ps(output + i + 40, e5);
+        _mm256_storeu_ps(output + i + 48, e6); _mm256_storeu_ps(output + i + 56, e7);
+
+        s0 = _mm256_add_ps(s0, e0); s1 = _mm256_add_ps(s1, e1);
+        s2 = _mm256_add_ps(s2, e2); s3 = _mm256_add_ps(s3, e3);
+        s4 = _mm256_add_ps(s4, e4); s5 = _mm256_add_ps(s5, e5);
+        s6 = _mm256_add_ps(s6, e6); s7 = _mm256_add_ps(s7, e7);
+    }
+    s0 = _mm256_add_ps(s0, s4); s1 = _mm256_add_ps(s1, s5);
+    s2 = _mm256_add_ps(s2, s6); s3 = _mm256_add_ps(s3, s7);
+    s0 = _mm256_add_ps(s0, s1); s2 = _mm256_add_ps(s2, s3);
+    s0 = _mm256_add_ps(s0, s2);
+
+    for (; i + 7 < n; i += 8) {
+        __m256 e = exp256_ps_v3(_mm256_sub_ps(_mm256_loadu_ps(input + i), max_vec));
+        _mm256_storeu_ps(output + i, e); s0 = _mm256_add_ps(s0, e);
+    }
+
+    float sum_val = reduce_sum(s0);
+    for (; i < n; ++i) {
+        float e = std::exp(input[i] - max_val); output[i] = e; sum_val += e;
+    }
+
+    if (sum_val == 0.0f) return;
+
+    float inv_sum = 1.0f / sum_val;
+    __m256 inv_sum_v = _mm256_set1_ps(inv_sum);
+    i = 0;
+    for (; i + 63 < n; i += 64) {
+        _mm256_storeu_ps(output + i, _mm256_mul_ps(_mm256_loadu_ps(output + i), inv_sum_v));
+        _mm256_storeu_ps(output + i + 8, _mm256_mul_ps(_mm256_loadu_ps(output + i + 8), inv_sum_v));
+        _mm256_storeu_ps(output + i + 16, _mm256_mul_ps(_mm256_loadu_ps(output + i + 16), inv_sum_v));
+        _mm256_storeu_ps(output + i + 24, _mm256_mul_ps(_mm256_loadu_ps(output + i + 24), inv_sum_v));
+        _mm256_storeu_ps(output + i + 32, _mm256_mul_ps(_mm256_loadu_ps(output + i + 32), inv_sum_v));
+        _mm256_storeu_ps(output + i + 40, _mm256_mul_ps(_mm256_loadu_ps(output + i + 40), inv_sum_v));
+        _mm256_storeu_ps(output + i + 48, _mm256_mul_ps(_mm256_loadu_ps(output + i + 48), inv_sum_v));
+        _mm256_storeu_ps(output + i + 56, _mm256_mul_ps(_mm256_loadu_ps(output + i + 56), inv_sum_v));
+    }
+    for (; i + 7 < n; i += 8) _mm256_storeu_ps(output + i, _mm256_mul_ps(_mm256_loadu_ps(output + i), inv_sum_v));
+    for (; i < n; ++i) output[i] *= inv_sum;
+}
+
 } // namespace ml_kernels
