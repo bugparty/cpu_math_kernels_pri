@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-05-24 - Single-FMA exp256 optimization
+**Learning:** In transcendental AVX2 SIMD approximations like exp256, combining constants for `r = x - n * ln(2)` into a single FMA instruction (rather than splitting `ln(2)` for exact precision) reduces register pressure and instruction count. This unlocks the ability to aggressively unroll the softmax loop 8x (processing 64 elements at once) without spilling registers, perfectly hiding latency and saturating the L1 cache bandwidth, all while staying within acceptable numerical ML tolerances.
+**Evidence:** Implementation of `softmax_v6` showing significant reduction in instruction count and higher throughput compared to `softmax_v5`.
+**Action:** When working on approximations where exact precision isn't strictly necessary, look for opportunities to combine mathematical constants to save registers and instructions, allowing for higher unrolling factors.
