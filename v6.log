@@ -1,0 +1,42 @@
+CPU binding disabled by DISABLE_CPU_BINDING environment variable.
+iters=20000, warmup=20, sizes=16384,65536,262144,1048576, filter=softmax_v6
+
+=== N=16384 (Pool Mode) ===
+benchmark                 avg_ms      min_ms      max_ms       GFLOP/s    verify
+--------------------------------------------------------------------------------
+softmax_v6                 0.018       0.015       0.161          3.65      PASS
+
+=== N=16384 (Fixed Memory) ===
+benchmark                 avg_ms      min_ms      max_ms       GFLOP/s    verify
+--------------------------------------------------------------------------------
+softmax_v6                 0.010       0.010       0.334          6.26      PASS
+
+=== N=65536 (Pool Mode) ===
+benchmark                 avg_ms      min_ms      max_ms       GFLOP/s    verify
+--------------------------------------------------------------------------------
+softmax_v6                 0.070       0.058       0.281          3.75      PASS
+
+=== N=65536 (Fixed Memory) ===
+benchmark                 avg_ms      min_ms      max_ms       GFLOP/s    verify
+--------------------------------------------------------------------------------
+softmax_v6                 0.042       0.039       0.267          6.28      PASS
+
+=== N=262144 (Pool Mode) ===
+benchmark                 avg_ms      min_ms      max_ms       GFLOP/s    verify
+--------------------------------------------------------------------------------
+softmax_v6                 0.353       0.304       0.709          2.97      PASS
+
+=== N=262144 (Fixed Memory) ===
+benchmark                 avg_ms      min_ms      max_ms       GFLOP/s    verify
+--------------------------------------------------------------------------------
+softmax_v6                 0.209       0.186       0.547          5.02      PASS
+
+=== N=1048576 (Pool Mode) ===
+benchmark                 avg_ms      min_ms      max_ms       GFLOP/s    verify
+--------------------------------------------------------------------------------
+softmax_v6                 1.581       1.394       2.839          2.65      PASS
+
+=== N=1048576 (Fixed Memory) ===
+benchmark                 avg_ms      min_ms      max_ms       GFLOP/s    verify
+--------------------------------------------------------------------------------
+softmax_v6                 0.919       0.807       1.875          4.57      PASS
