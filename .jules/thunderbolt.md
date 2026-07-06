@@ -27,3 +27,8 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+
+## 2024-07-06 - Thunderbolt: AVX2 Softmax Unrolling with Single-FMA exp256
+**Learning:** Using a single-FMA for the `r = x - n * ln(2)` transcendental approximation reduces register pressure enough to enable aggressive 8x unrolling in multi-pass algorithms like Softmax, without exceeding numerical tolerance limits.
+**Evidence:** Throughput on 1M element fixed-memory benchmark increased from ~4.12 GFLOPS (softmax_v5, 4x unroll) to ~4.61 GFLOPS (softmax_v6, 8x unroll), an ~11.8% gain.
+**Action:** When approximating transcendentals with AVX2/FMA, if strict ln(2) precision splitting is not required for correctness, combine constants into a single FMA to free up YMM registers for wider unrolling (e.g., 8x instead of 4x) to better hide latency and saturate execution ports.
