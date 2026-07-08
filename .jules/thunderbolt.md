@@ -27,3 +27,7 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2025-02-14 - AVX2 Softmax Unrolling and Single-FMA exp256
+**Learning:** Combining transcendental function optimizations (like single-FMA evaluation for `x - n * ln(2)` and Horner's scheme) with aggressive 8x loop unrolling allows a math kernel to shift from instruction-latency bottlenecks directly into L1/L2 cache bandwidth limits.
+**Evidence:** In `ml_kernels_bench`, `softmax_v6` achieved 4.91 GFLOP/s vs `softmax_v5` at 4.37 GFLOP/s on a 262144 element buffer in Fixed Memory mode, while also providing ~10% improvements in Pool Mode.
+**Action:** When working on math kernels involving exponentials or logarithms, consider reducing instruction dependencies by using single-FMA for constants and unrolling the loop across all available 16 YMM registers to hide the latency of floating point operations.
