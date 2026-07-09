@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax 8x Unrolling and FMA Range Reduction
+
+**Learning:** Unrolling purely computational, independent SIMD pipelines by 8x (64 elements per loop in AVX2) allows the scheduler to perfectly hide the latencies of multi-stage operations (like Max, Exp range-reduction + polynomial, and Normalize) and saturate out-of-order execution resources compared to 4x unrolling. Furthermore, mathematical operations involving constant offsets like `r = x - n*ln2` in range reduction can have the constants `ln2` pre-multiplied if it fits precision, enabling a single `_mm256_fnmadd_ps` instead of two chained FNMA operations, thereby reducing register pressure and execution latency during the unrolled phase.
+
+**Evidence:** The newly implemented `softmax_v6` leverages a single FMA range-reduction step and 8x loop unrolling. Microbenchmarking against `softmax_v5` (which uses 4x unrolling and split ln2 range reduction) demonstrated a throughput jump from 5.65 GFLOP/s to 6.22 GFLOP/s (~10% improvement) on N=16384 Fixed Memory mode.
+
+**Action:** When working on math compute kernels that are already compute-bound via 4x unrolling, consider exploring 8x unrolling combined with algebraic consolidation (reducing multiple FMAs into single ones by factoring constants) to further shift the bottleneck from port execution starvation to memory bandwidth, especially for AVX2 where YMM register counts (16) can sustain 8 independent accumulators cleanly.
