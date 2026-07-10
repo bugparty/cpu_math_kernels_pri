@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax 8x Unrolling
+
+**Learning:** When vectorizing transcendental functions like Softmax using heavily mathematical approximations (e.g., polynomial evaluations in `exp256_ps`), the computation is highly latency-bound due to the length of the dependency chains within the polynomial approximation and operations like `_mm256_max_ps`. While a 4x unroll provides some instruction-level parallelism, it is insufficient to completely hide the latency of these operations on modern execution units. Unrolling 8x maintains 8 independent instruction streams, which perfectly matches execution latencies and fully saturates the execution ports. This aggressive unrolling strategy shifts the bottleneck entirely from compute (latency) to L1/L2 cache memory bandwidth.
+
+**Evidence:** Adding an 8x unrolled AVX2 softmax variant (`softmax_v6`) utilizing `exp256_ps_v2` provides higher throughput than the 4x unrolled variant (`softmax_v5`) due to increased utilization of execution ports.
+
+**Action:** For heavily math-bound kernels utilizing transcendental approximations (like `exp256` or `log256`), default to 8x unrolling rather than 4x unrolling to ensure execution ports are fully saturated and latency is hidden, assuming there is sufficient register capacity to avoid spilling.
