@@ -34,3 +34,11 @@
 **Evidence:** Microbenchmarking showed a noticeable throughput improvement for a vector of 1048576 elements when applying 8x unrolling and single-FMA constant fusion in `exp256` (approx. 0.915s vs 0.979s for `softmax_v5` in isolated loops). End-to-end benchmarks show increased GFLOP/s, especially on large fixed-memory allocations.
 
 **Action:** For heavily unrolled bound compute loops utilizing transcendental approximations on AVX2, look for opportunities to fuse mathematical constants into single FMA operations to reduce instruction count. Default to 8x unroll (over 4x) for heavy latency-bound maps/reductions to ensure full execution unit utilization.
+
+## 2024-10-27 - AVX-512 Unaligned Access in LU Factorization
+
+**Learning:** When using AVX-512 for row swapping or memory copy operations in kernels like `dgetrf` (LU Factorization), using aligned loads and stores (`_mm512_load_pd` and `_mm512_store_pd`) will cause general protection faults / crashes when matrix dimensions are not a multiple of the alignment requirement. In this case, N=96 means rows are 96 * 8 = 768 bytes, which is a multiple of 64 bytes (the AVX-512 alignment size), however, row swaps can occur on a sub-matrix offset if the matrix is decomposed. Furthermore, when `ipiv` max index points to a submatrix element, the row address might not be 64-byte aligned.
+
+**Evidence:** The CI pipeline failed with `corrupted double-linked list` and `exit code 134` (SIGABRT/SIGSEGV) when running `dgetrf_bench_all` on `sizes=96`. Changing `_mm512_load_pd` and `_mm512_store_pd` to `_mm512_loadu_pd` and `_mm512_storeu_pd` fixed the crash entirely with virtually no performance penalty on modern architectures.
+
+**Action:** Always use unaligned load/store intrinsics (`_mm512_loadu_pd` and `_mm512_storeu_pd`) for memory bound operations involving dynamically indexed rows (e.g., pivot swapping) unless the memory allocation *and* the stride/offset are explicitly proven and asserted to be aligned to the vector width (64 bytes for AVX-512).
