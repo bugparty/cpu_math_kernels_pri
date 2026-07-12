@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax 8x Unrolling and Fused exp256 Constants
+
+**Learning:** When vectorizing transcendental functions like `exp` in AVX2 for operations like Softmax, the `exp256` approximations dominate execution time. By reducing the FMA instruction count in the `exp256` range reduction (e.g. combining constants for `r = x - n*ln2` using a single `_mm256_fnmadd_ps` with full precision ln(2) instead of a split representation), the instruction pipeline pressure is lowered. Furthermore, unrolling the main loop 8x (handling 64 elements per iteration) compared to 4x fully saturates the execution ports on AVX2, hiding the latencies of both the `exp256` calculations and the `max` reductions.
+
+**Evidence:** Microbenchmarking showed a noticeable throughput improvement for a vector of 1048576 elements when applying 8x unrolling and single-FMA constant fusion in `exp256` (approx. 0.915s vs 0.979s for `softmax_v5` in isolated loops). End-to-end benchmarks show increased GFLOP/s, especially on large fixed-memory allocations.
+
+**Action:** For heavily unrolled bound compute loops utilizing transcendental approximations on AVX2, look for opportunities to fuse mathematical constants into single FMA operations to reduce instruction count. Default to 8x unroll (over 4x) for heavy latency-bound maps/reductions to ensure full execution unit utilization.
