@@ -23,16 +23,16 @@ void swapRow3(double *A, int n, int first, int second) {
     for (i = 0; i < n; i += 16) {
 
         // Load 8 doubles from each row into AVX-512 registers
-        __m512d vec1 = _mm512_load_pd(&row1[i]);
-        __m512d vec2 = _mm512_load_pd(&row2[i]);
-        _mm512_store_pd(&row1[i], vec2);
-        _mm512_store_pd(&row2[i], vec1);
-        __m512d vec3 = _mm512_load_pd(&row1[i+8]);
-        __m512d vec4 = _mm512_load_pd(&row2[i+8]);
+        __m512d vec1 = _mm512_loadu_pd(&row1[i]);
+        __m512d vec2 = _mm512_loadu_pd(&row2[i]);
+        _mm512_storeu_pd(&row1[i], vec2);
+        _mm512_storeu_pd(&row2[i], vec1);
+        __m512d vec3 = _mm512_loadu_pd(&row1[i+8]);
+        __m512d vec4 = _mm512_loadu_pd(&row2[i+8]);
         // Swap the contents of the two rows
 
-        _mm512_store_pd(&row1[i+8], vec4);
-        _mm512_store_pd(&row2[i+8], vec3);
+        _mm512_storeu_pd(&row1[i+8], vec4);
+        _mm512_storeu_pd(&row2[i+8], vec3);
 
     }
 }
@@ -49,10 +49,10 @@ __builtin_prefetch(row2, 0, 3);
         double * row1p = &row1[i];
         double * row2p = &row2[i];
         // Load 8 doubles from each row into AVX-512 registers
-        __m512d vec1 = _mm512_load_pd(row1p);
-        __m512d vec2 = _mm512_load_pd(row2p);
-        _mm512_store_pd(row1p, vec2);
-        _mm512_store_pd(row2p, vec1);
+        __m512d vec1 = _mm512_loadu_pd(row1p);
+        __m512d vec2 = _mm512_loadu_pd(row2p);
+        _mm512_storeu_pd(row1p, vec2);
+        _mm512_storeu_pd(row2p, vec1);
         __builtin_prefetch(row1p + 16, 0, 3);
         __builtin_prefetch(row2p + 16, 0, 3);
     }
