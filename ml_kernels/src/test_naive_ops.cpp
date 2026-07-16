@@ -181,11 +181,50 @@ void test_softmax_v5() {
     std::cout << "test_softmax_v5 passed!" << std::endl;
 }
 
+
+void test_softmax_v6() {
+    std::cout << "Running test_softmax_v6..." << std::endl;
+    std::vector<float> input = {
+        -2.0f, -0.5f, 1.0f, 3.0f,
+        0.0f, 0.0f, 0.0f, 0.0f,
+        100.0f, 100.0f, -100.0f, -100.0f,
+        5.0f, -5.0f, 2.0f, -2.0f,
+        1.1f, 1.2f, 1.3f, 1.4f,
+        -1.1f, -1.2f, -1.3f, -1.4f,
+        10.0f, 20.0f, 30.0f, 40.0f,
+        -10.0f, -20.0f, -30.0f, -40.0f,
+        -2.0f, -0.5f, 1.0f, 3.0f,
+        0.0f, 0.0f, 0.0f, 0.0f,
+        100.0f, 100.0f, -100.0f, -100.0f,
+        5.0f, -5.0f, 2.0f, -2.0f,
+        1.1f, 1.2f, 1.3f, 1.4f,
+        -1.1f, -1.2f, -1.3f, -1.4f,
+        10.0f, 20.0f, 30.0f, 40.0f,
+        -10.0f, -20.0f, -30.0f, -40.0f,
+        -2.0f, -0.5f, 1.0f, 3.0f,
+        0.0f, 0.0f, 0.0f, 0.0f,
+        100.0f, 100.0f, -100.0f, -100.0f,
+        5.0f, -5.0f, 2.0f, -2.0f
+    };
+    std::vector<float> expected_output(input.size());
+    std::vector<float> actual_output(input.size());
+
+    ml_kernels::softmax_naive(input.data(), expected_output.data(), input.size());
+    ml_kernels::softmax_v6(input.data(), actual_output.data(), input.size());
+
+    for (std::size_t i = 0; i < input.size(); ++i) {
+        assert(std::fabs(expected_output[i] - actual_output[i]) < 1e-4f);
+    }
+    std::cout << "test_softmax_v6 passed!" << std::endl;
+}
+
 int main() {
+
     test_relu_naive();
     test_max_naive();
     test_softmax_v3();
     test_softmax_v4();
     test_softmax_v5();
+    test_softmax_v6();
     std::cout << "All tests passed successfully!" << std::endl;
 }

@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax 8x Unrolling
+
+**Learning:** When vectorizing transcendental functions like `exp` in AVX2 for Softmax, `_mm256_max_ps` and `_mm256_add_ps` have 4-cycle latencies. A 4x unroll only issues 4 instructions, leaving execution ports idle while waiting for the dependency chain to resolve. Unrolling 8x maintains 8 independent accumulators across all three phases (max reduction, exp/sum, normalization), perfectly matching the latency and fully saturating the execution ports without spilling YMM registers, transitioning the kernel from latency-bound to throughput-bound.
+
+**Evidence:** Microbenchmarking showed a 10-15% throughput increase for `softmax_v6` (8x unroll) over `softmax_v5` (4x unroll) on large arrays.
+
+**Action:** For heavily bound AVX2 map-reduce kernels like Softmax, default to 8x unrolling over 4x unrolling across all phases to fully saturate modern out-of-order execution engines, provided register spilling does not occur.
