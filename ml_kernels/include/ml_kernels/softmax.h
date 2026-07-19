@@ -501,4 +501,5 @@ inline void softmax_v5(const float *input, float *output, std::size_t n) {
     }
 }
 
+#include "softmax_v6.h"
 } // namespace ml_kernels
