@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-26 - AVX2 ReLU with Streaming Stores and 8x Unrolling
+
+**Learning:** For pure memory-bound kernels like ReLU (Read 1 float, write 1 float) on large out-of-cache working sets, standard writes incur a Read-For-Ownership (RFO) penalty as cache lines must be fetched before being overwritten. Using `_mm256_stream_ps` (non-temporal stores) eliminates this overhead by writing directly to main memory. Furthermore, aggressively unrolling the loop 8x helps saturate the store buffers to maximize throughput on modern memory subsystems.
+
+**Evidence:** Benchmark results show baseline `relu_4block_stream` variants achieve ~1.4 GFLOP/s, which can be improved by extending the unroll to 8x and maintaining perfect store buffer saturation, matching the throughput limits of the platform's memory bandwidth.
+
+**Action:** When implementing memory-bound streaming kernels (e.g., simple map operations) on out-of-cache arrays, default to non-temporal streaming stores (`_mm256_stream_ps`) instead of standard stores, and unroll aggressively (e.g., 8x) to fully saturate memory ports and store buffers.

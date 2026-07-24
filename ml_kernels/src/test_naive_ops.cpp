@@ -1,3 +1,4 @@
+#include <random>
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -6,6 +7,7 @@
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/softmax.h"
+#include "ml_kernels/relu.h"
 
 void test_max_naive() {
     // Happy path
@@ -92,7 +94,32 @@ void test_relu_naive() {
     std::cout << "test_relu_naive passed!" << std::endl;
 }
 
+
+void test_relu_v4() {
+    std::cout << "Running test_relu_v4..." << std::endl;
+    std::mt19937 gen(42);
+    std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
+
+    std::vector<float> input(72);
+    for (auto &v : input) v = dist(gen);
+
+    std::vector<float> output_ref(input.size());
+    ml_kernels::relu_naive(input.data(), output_ref.data(), input.size());
+
+    std::vector<float> output_v4(input.size());
+    ml_kernels::relu_v4(input.data(), output_v4.data(), input.size());
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        if (std::fabs(output_ref[i] - output_v4[i]) > 1e-6f) {
+            std::cerr << "Mismatch at index " << i << ": expected " << output_ref[i] << ", got " << output_v4[i] << std::endl;
+            std::exit(1);
+        }
+    }
+    std::cout << "test_relu_v4 passed!" << std::endl;
+}
+
 void test_softmax_v3() {
+
     std::cout << "Running test_softmax_v3..." << std::endl;
     std::vector<float> input = {
         -2.0f, -0.5f, 1.0f, 3.0f,
@@ -183,6 +210,7 @@ void test_softmax_v5() {
 
 int main() {
     test_relu_naive();
+    test_relu_v4();
     test_max_naive();
     test_softmax_v3();
     test_softmax_v4();
