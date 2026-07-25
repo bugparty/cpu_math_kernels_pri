@@ -75,7 +75,7 @@ int mydgetrf(double *A,int *ipiv,int n)
         maxind=i;
         max = fabs(A[i*n+i]);
         for(t=i+1;t<n;++t){
-            if( fabs(A[t*n+i] > max)){
+            if( fabs(A[t*n+i]) > max ){
                 maxind = t;
                 max = fabs(A[t*n+i]);//line 21 of mylu.m
             }
