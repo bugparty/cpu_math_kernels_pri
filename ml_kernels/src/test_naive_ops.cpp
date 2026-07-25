@@ -6,6 +6,7 @@
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/naive_ops.h"
 #include "ml_kernels/softmax.h"
+#include "ml_kernels/max.h"
 
 void test_max_naive() {
     // Happy path
@@ -181,9 +182,28 @@ void test_softmax_v5() {
     std::cout << "test_softmax_v5 passed!" << std::endl;
 }
 
+void test_max_v4() {
+    // 16x unroll tests 128 elements + remainder
+    std::vector<float> input(150, 0.0f);
+    for (int i = 0; i < 150; ++i) {
+        input[i] = static_cast<float>(i - 75);
+    }
+    // Set a known max value in a remainder position
+    input[135] = 999.0f;
+
+    float result_naive = ml_kernels::max_naive(input.data(), input.size());
+    float result_v4 = ml_kernels::max_v4(input.data(), input.size());
+
+    assert(result_naive == 999.0f);
+    assert(result_v4 == 999.0f);
+
+    std::cout << "test_max_v4 passed!" << std::endl;
+}
+
 int main() {
     test_relu_naive();
     test_max_naive();
+    test_max_v4();
     test_softmax_v3();
     test_softmax_v4();
     test_softmax_v5();
