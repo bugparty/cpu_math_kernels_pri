@@ -125,6 +125,7 @@ REGISTER_RELU_BENCHMARK(relu_v3);
 REGISTER_RELU_BENCHMARK(relu_v2_1);
 REGISTER_RELU_BENCHMARK(relu_4block_stream);
 REGISTER_RELU_BENCHMARK(relu_4block_stream_unroll);
+REGISTER_RELU_BENCHMARK(relu_8block_stream_unroll);
 REGISTER_RELU_BENCHMARK(relu_4block_stream_nofence);
 REGISTER_RELU_BENCHMARK(relu_4block_stream_nofence2);
 REGISTER_RELU_BENCHMARK(relu_4block_stream_nofence3);

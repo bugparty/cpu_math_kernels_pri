@@ -16,7 +16,7 @@ add_executable(ml_kernel_test
     src/test_naive_ops.cpp
 )
 
-target_include_directories(ml_kernel_test PRIVATE include)
+target_include_directories(ml_kernel_test PRIVATE include ${CMAKE_SOURCE_DIR}/include)
 
 add_executable(ml_kernel_bench
     src/naive_ops.cpp
@@ -31,7 +31,7 @@ add_executable(ml_kernel_test_naive_ops
     src/test_naive_ops.cpp
 )
 
-target_include_directories(ml_kernel_test_naive_ops PRIVATE include)
+target_include_directories(ml_kernel_test_naive_ops PRIVATE include ${CMAKE_SOURCE_DIR}/include)
 
 if(MSVC)
     target_compile_options(ml_kernel_smoke PRIVATE $<$<NOT:$<CONFIG:Debug>>:/O2>)

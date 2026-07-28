@@ -4,7 +4,7 @@
 #include <cmath>
 
 #include "ml_kernels/naive_ops.h"
-#include "ml_kernels/naive_ops.h"
+#include "ml_kernels/relu.h"
 #include "ml_kernels/softmax.h"
 
 void test_max_naive() {
@@ -90,6 +90,46 @@ void test_relu_naive() {
     }
 
     std::cout << "test_relu_naive passed!" << std::endl;
+}
+
+
+void test_relu_8block_stream_unroll() {
+    std::cout << "Running test_relu_8block_stream_unroll..." << std::endl;
+
+    // We need at least 72 elements to trigger both the 64-element main loop and the 8-element remainder loop
+    std::vector<float> input = {
+        -1.0f, 0.0f, 2.5f, -3.14f, 5.0f, -1.0f, 0.0f, 2.5f, -3.14f, 5.0f,
+        -1.0f, 0.0f, 2.5f, -3.14f, 5.0f, -1.0f, 0.0f, 2.5f, -3.14f, 5.0f,
+        -1.0f, 0.0f, 2.5f, -3.14f, 5.0f, -1.0f, 0.0f, 2.5f, -3.14f, 5.0f,
+        -1.0f, 0.0f, 2.5f, -3.14f, 5.0f, -1.0f, 0.0f, 2.5f, -3.14f, 5.0f,
+        -1.0f, 0.0f, 2.5f, -3.14f, 5.0f, -1.0f, 0.0f, 2.5f, -3.14f, 5.0f,
+        -1.0f, 0.0f, 2.5f, -3.14f, 5.0f, -1.0f, 0.0f, 2.5f, -3.14f, 5.0f,
+        -1.0f, 0.0f, 2.5f, -3.14f, 5.0f, -1.0f, 0.0f, 2.5f, -3.14f, 5.0f,
+        1.0f, 1.0f
+    };
+
+    std::vector<float> expected(input.size());
+    ml_kernels::relu_naive(input.data(), expected.data(), input.size());
+
+    // Ensure memory is aligned for streaming stores if required (though stream_ps handles unaligned well, better safe than sorry, but std::vector alignment is often good enough for our tests, we will just allocate a bit larger and align manually or just use standard vector)
+    // Actually, `_mm256_stream_ps` requires 32-byte alignment. std::vector is usually 16 or 32 aligned, but to be strictly safe, let's just use `posix_memalign` if we can, or just try vector. The previous tests don't use aligned_alloc for tests. Let's see if we can just align a buffer.
+
+    float* aligned_out;
+    if (posix_memalign((void**)&aligned_out, 32, input.size() * sizeof(float)) != 0) return;
+    float* aligned_in;
+    if (posix_memalign((void**)&aligned_in, 32, input.size() * sizeof(float)) != 0) { free(aligned_out); return; }
+    for(size_t i=0; i<input.size(); ++i) aligned_in[i] = input[i];
+
+    ml_kernels::relu_8block_stream_unroll(aligned_in, aligned_out, input.size());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        assert(std::fabs(aligned_out[i] - expected[i]) < 1e-6f);
+    }
+
+    free(aligned_out);
+    free(aligned_in);
+
+    std::cout << "test_relu_8block_stream_unroll passed!" << std::endl;
 }
 
 void test_softmax_v3() {
@@ -183,6 +223,7 @@ void test_softmax_v5() {
 
 int main() {
     test_relu_naive();
+    test_relu_8block_stream_unroll();
     test_max_naive();
     test_softmax_v3();
     test_softmax_v4();

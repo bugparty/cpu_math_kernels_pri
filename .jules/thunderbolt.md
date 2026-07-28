@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 ReLU Non-Temporal Store Unrolling
+
+**Learning:** When using non-temporal streaming stores (`_mm256_stream_ps`) for simple, memory-bound kernels like ReLU to bypass the cache and write directly to main memory, unrolling the loop by 4x is not always sufficient to fully saturate the memory bandwidth on modern x86 architectures. Unrolling the loop 8x maintains enough in-flight streams to fully occupy the Line Fill Buffers (LFBs) and execution ports, maximizing store bandwidth and hiding instruction latency completely.
+
+**Evidence:** Microbenchmarking a 64MB buffer out-of-cache showed `relu_4block_stream_unroll` achieving ~11.78 GB/s (45.54 ms) while `relu_8block_stream_unroll` achieved ~13.52 GB/s (39.70 ms), a nearly 15% increase in throughput.
+
+**Action:** For pure memory-bound kernels relying on non-temporal stores, unroll the store loops by 8x rather than 4x to ensure memory bandwidth and Line Fill Buffers are fully saturated.
