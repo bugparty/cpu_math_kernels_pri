@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2025-02-27 - AVX2 Max Reduction Register Pressure
+
+**Learning:** While `_mm256_max_ps` has a 4-cycle latency, aggressively unrolling 16x to use all 16 YMM registers on AVX2 causes register spilling. This is because the load intrinsic requires temporary registers, leaving none available. An 8-way unroll perfectly covers the 4-cycle latency (given 0.5-cycle throughput) and shifts bottlenecks directly to L1/L2 cache bandwidth constraints without causing spills.
+
+**Evidence:** A 16-way unroll was initially implemented and passed tests, but code review pointed out that it forces the compiler to spill registers to the stack inside the innermost hot loop, defeating the purpose of perfect latency hiding. An 8-way unroll avoids this.
+
+**Action:** When unrolling AVX2 loops to hide latency, target an 8-way unroll (which perfectly matches 4-cycle latency ops with 0.5 cycle throughput) rather than exhausting all 16 YMM registers, ensuring temporary registers remain available for loads.

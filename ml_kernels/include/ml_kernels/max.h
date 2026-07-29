@@ -59,6 +59,67 @@ inline float max_v2(const float *input, std::size_t n) {
     return max_val;
 }
 
+
+// ⚡ Thunderbolt: AVX2 Vectorized Max Reduction (8x unroll)
+// Target: AVX2 (Haswell+)
+// Reason: `_mm256_max_ps` has a 4-cycle latency and 0.5-cycle throughput on most modern Intel uarchs. Simple vector reduction loops benefit from aggressive 8x unrolling to fully utilize all 16 YMM registers. A 16x unroll would cause register spilling because the load intrinsic requires temporary registers. An 8-way unroll perfectly covers the 4-cycle latency and shifts bottlenecks directly to L1/L2 cache bandwidth constraints without causing spills.
+// Expected gain: ~1.5x-2.0x throughput over 4x unroll (max_v2) on large arrays.
+inline float max_v4(const float *input, std::size_t n) {
+    if (n == 0) return 0.0f;
+
+    std::size_t i = 0;
+    __m256 max_v = _mm256_set1_ps(std::numeric_limits<float>::lowest());
+    __m256 m0 = max_v, m1 = max_v, m2 = max_v, m3 = max_v;
+    __m256 m4 = max_v, m5 = max_v, m6 = max_v, m7 = max_v;
+
+    // Unroll 8x for 64 elements per iteration
+    for (; i + 63 < n; i += 64) {
+        m0 = _mm256_max_ps(m0, _mm256_loadu_ps(input + i));
+        m1 = _mm256_max_ps(m1, _mm256_loadu_ps(input + i + 8));
+        m2 = _mm256_max_ps(m2, _mm256_loadu_ps(input + i + 16));
+        m3 = _mm256_max_ps(m3, _mm256_loadu_ps(input + i + 24));
+        m4 = _mm256_max_ps(m4, _mm256_loadu_ps(input + i + 32));
+        m5 = _mm256_max_ps(m5, _mm256_loadu_ps(input + i + 40));
+        m6 = _mm256_max_ps(m6, _mm256_loadu_ps(input + i + 48));
+        m7 = _mm256_max_ps(m7, _mm256_loadu_ps(input + i + 56));
+    }
+
+    // Reduce the 8 vectors into 1
+    m0 = _mm256_max_ps(m0, m4);
+    m1 = _mm256_max_ps(m1, m5);
+    m2 = _mm256_max_ps(m2, m6);
+    m3 = _mm256_max_ps(m3, m7);
+
+    m0 = _mm256_max_ps(m0, m1);
+    m2 = _mm256_max_ps(m2, m3);
+    m0 = _mm256_max_ps(m0, m2);
+
+    // Remainder loop for multiples of 8 elements
+    for (; i + 7 < n; i += 8) {
+        m0 = _mm256_max_ps(m0, _mm256_loadu_ps(input + i));
+    }
+
+    // In-register horizontal reduction
+    __m128 lo = _mm256_castps256_ps128(m0);
+    __m128 hi = _mm256_extractf128_ps(m0, 1);
+    lo = _mm_max_ps(lo, hi);
+
+    __m128 shuf = _mm_shuffle_ps(lo, lo, _MM_SHUFFLE(2, 3, 0, 1));
+    lo = _mm_max_ps(lo, shuf);
+    shuf = _mm_shuffle_ps(lo, lo, _MM_SHUFFLE(1, 0, 3, 2));
+    lo = _mm_max_ps(lo, shuf);
+
+    float max_val = _mm_cvtss_f32(lo);
+
+    // Scalar epilogue
+    for (; i < n; ++i) {
+        if (input[i] > max_val) {
+            max_val = input[i];
+        }
+    }
+    return max_val;
+}
+
 } // namespace ml_kernels
 
 // ⚡ Thunderbolt: AVX2 Vectorized Max Reduction (8x unroll)
