@@ -4,7 +4,7 @@
 #include <cmath>
 
 #include "ml_kernels/naive_ops.h"
-#include "ml_kernels/naive_ops.h"
+#include "ml_kernels/max.h"
 #include "ml_kernels/softmax.h"
 
 void test_max_naive() {
@@ -181,7 +181,43 @@ void test_softmax_v5() {
     std::cout << "test_softmax_v5 passed!" << std::endl;
 }
 
+
+void test_max_v4() {
+    std::cout << "Running test_max_v4..." << std::endl;
+    // Happy path (large enough for unrolled loop)
+    {
+        std::vector<float> input(150);
+        for (int i = 0; i < 150; ++i) input[i] = static_cast<float>(i);
+        input[145] = 1000.0f; // max value
+        float result = ml_kernels::max_v4(input.data(), input.size());
+        assert(result == 1000.0f);
+    }
+
+    // Negative values
+    {
+        std::vector<float> input = {-5.0f, -2.0f, -8.0f};
+        float result = ml_kernels::max_v4(input.data(), input.size());
+        assert(result == -2.0f);
+    }
+
+    // Single element
+    {
+        std::vector<float> input = {42.0f};
+        float result = ml_kernels::max_v4(input.data(), input.size());
+        assert(result == 42.0f);
+    }
+
+    // Empty array
+    {
+        float result = ml_kernels::max_v4(nullptr, 0);
+        assert(result == 0.0f);
+    }
+
+    std::cout << "test_max_v4 passed!" << std::endl;
+}
+
 int main() {
+    test_max_v4();
     test_relu_naive();
     test_max_naive();
     test_softmax_v3();
