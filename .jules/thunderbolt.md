@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax 8x Unrolling
+
+**Learning:** In a 3-pass softmax, while the exponential pass (pass 2) contains many registers due to FMA polynomial approximations, the max reduction (pass 1) and normalization (pass 3) passes benefit from 8x unrolling. The 4-cycle latency of `_mm256_max_ps` is perfectly hidden by 8x unrolling. For normalization, an 8x unroll better saturates the load/store buffers for out-of-cache memory reads/writes. This yields higher execution unit saturation and memory bandwidth utilization compared to 4x.
+
+**Evidence:** Microbenchmarks and framework benchmarks (`softmax_v6` vs `softmax_v5`) showed an overall GFLOPS improvement (e.g., 2.35 GFLOPS to 2.41 GFLOPS for 1M elements, and slight improvements across all pool/fixed memory sizes up to N=1048576).
+
+**Action:** In multi-pass memory-bound kernels, analyze each pass independently. A single unroll factor is not always optimal across all passes; use 8x for simple reductions/element-wise operations (like max/normalization) and lower unroll factors (like 4x) for register-heavy transcendental approximations (like exp).
