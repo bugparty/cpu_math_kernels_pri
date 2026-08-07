@@ -27,3 +27,10 @@
 **Evidence:** Microbenchmarking showed a 2x speedup (99ms -> 49ms) for max_v3 over max_v2 on L1-hot arrays. End-to-end framework benchmarks showed an 8% throughput increase (4.03 -> 4.36 GFLOP/s) on large fixed-memory allocations (N=6553600).
 
 **Action:** For reductions using instructions with >2 cycle latency (like max_ps or add_ps), default to 8x unrolling over 4x unrolling to fully saturate modern out-of-order execution engines.
+## 2024-10-27 - AVX2 Softmax Hybrid 8x/4x Unrolling
+
+**Learning:** In a multi-pass memory-bound AVX2 kernel like Softmax, it is not always optimal to unroll all loops by the same factor. The max-finding (Pass 1) and normalization (Pass 3) loops are heavily memory-bound and benefit from an 8x unroll to fully saturate memory bandwidth and hide the 4-cycle `_mm256_max_ps` latency. However, unrolling the FMA-heavy exponentiation pass (Pass 2) by 8x causes register spilling and port saturation. A hybrid approach where memory-bound passes are unrolled 8x and compute-bound passes are unrolled 4x achieves the best balance of resources.
+
+**Evidence:** Vectorizing `softmax_v6` with an 8x unroll in the max/normalize phases while maintaining a 4x unroll for the exponential phase significantly improved performance compared to `softmax_v5` (which was 4x across the board), demonstrating higher throughput without stalling execution units.
+
+**Action:** For multi-pass kernels combining math-heavy approximations and simple memory-bound reductions, independently profile and tune the unroll factor for each pass rather than applying a single unroll factor globally.
